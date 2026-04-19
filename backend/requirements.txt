@@ -2,3 +2,5 @@ Django==5.1.3
 psycopg[binary]
 gunicorn
 django-cors-headers
+djangorestframework
+Pillow

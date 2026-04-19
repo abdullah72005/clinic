@@ -20,3 +20,4 @@ docs for more detail on building and pushing.
 
 ### References
 * [Docker's Python guide](https://docs.docker.com/language/python/)
+* [Project docker exec command guide](DOCKER_EXEC_COMMANDS.md)
