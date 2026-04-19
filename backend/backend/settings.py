@@ -42,8 +42,10 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',
-    'auth',
+    'rest_framework',
+    'authentication',
 ]
+AUTH_USER_MODEL = "authentication.User"
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
