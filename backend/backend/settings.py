@@ -15,8 +15,11 @@ import os
 from datetime import timedelta
 from django.core.exceptions import ImproperlyConfigured
 
+
 def env_list(name, default=""):
-    return [item.strip() for item in os.getenv(name, default).split(",") if item.strip()]
+    return [
+        item.strip() for item in os.getenv(name, default).split(",") if item.strip()
+    ]
 
 
 def env_int(name, default):
@@ -26,7 +29,9 @@ def env_int(name, default):
     try:
         return int(raw_value)
     except ValueError as exc:
-        raise ImproperlyConfigured(f"{name} must be an integer. Got: {raw_value}") from exc
+        raise ImproperlyConfigured(
+            f"{name} must be an integer. Got: {raw_value}"
+        ) from exc
 
 
 def env_bool(name, default=False):
@@ -55,9 +60,12 @@ def env_samesite(name, default="Lax"):
     }
 
     if normalized not in allowed:
-        raise ImproperlyConfigured(f"{name} must be one of: Lax, Strict, None. Got: {raw_value}")
+        raise ImproperlyConfigured(
+            f"{name} must be one of: Lax, Strict, None. Got: {raw_value}"
+        )
 
     return allowed[normalized]
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -67,7 +75,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-0i!*lkeq_%r51lb_1eco#=rah0lg_nnj3#7zo!7k^=@tlh5!qx'
+SECRET_KEY = "django-insecure-0i!*lkeq_%r51lb_1eco#=rah0lg_nnj3#7zo!7k^=@tlh5!qx"
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -78,16 +86,17 @@ ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,backend")
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'corsheaders',
-    'rest_framework',
-    'rest_framework_simplejwt.token_blacklist',
-    'authentication',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "corsheaders",
+    "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
+    "authentication",
+    "clinic_management.apps.ClinicManagementConfig",
 ]
 AUTH_USER_MODEL = "authentication.User"
 
@@ -98,35 +107,35 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = env_bool("DJANGO_CORS_ALLOW_CREDENTIALS", False)
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'backend.urls'
+ROOT_URLCONF = "backend.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'backend.wsgi.application'
+WSGI_APPLICATION = "backend.wsgi.application"
 
 
 # Database
@@ -144,8 +153,7 @@ DATABASES = {
 }
 
 CSRF_TRUSTED_ORIGINS = env_list(
-    "DJANGO_CSRF_TRUSTED_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173"
+    "DJANGO_CSRF_TRUSTED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
 )
 
 
@@ -154,16 +162,16 @@ CSRF_TRUSTED_ORIGINS = env_list(
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
@@ -189,22 +197,30 @@ AUTH_REFRESH_COOKIE_SECURE = env_bool("AUTH_REFRESH_COOKIE_SECURE", False)
 AUTH_REFRESH_COOKIE_SAMESITE = env_samesite("AUTH_REFRESH_COOKIE_SAMESITE", "Lax")
 AUTH_CSRF_COOKIE_NAME = os.getenv("AUTH_CSRF_COOKIE_NAME", "auth_csrf")
 AUTH_CSRF_HEADER_NAME = os.getenv("AUTH_CSRF_HEADER_NAME", "X-Auth-CSRF")
-AUTH_CSRF_COOKIE_SECURE = env_bool("AUTH_CSRF_COOKIE_SECURE", AUTH_REFRESH_COOKIE_SECURE)
-AUTH_CSRF_COOKIE_SAMESITE = env_samesite("AUTH_CSRF_COOKIE_SAMESITE", AUTH_REFRESH_COOKIE_SAMESITE)
+AUTH_CSRF_COOKIE_SECURE = env_bool(
+    "AUTH_CSRF_COOKIE_SECURE", AUTH_REFRESH_COOKIE_SECURE
+)
+AUTH_CSRF_COOKIE_SAMESITE = env_samesite(
+    "AUTH_CSRF_COOKIE_SAMESITE", AUTH_REFRESH_COOKIE_SAMESITE
+)
 
 if AUTH_REFRESH_COOKIE_SAMESITE == "None" and not AUTH_REFRESH_COOKIE_SECURE:
-    raise ImproperlyConfigured("AUTH_REFRESH_COOKIE_SECURE must be true when AUTH_REFRESH_COOKIE_SAMESITE is None")
+    raise ImproperlyConfigured(
+        "AUTH_REFRESH_COOKIE_SECURE must be true when AUTH_REFRESH_COOKIE_SAMESITE is None"
+    )
 
 if AUTH_CSRF_COOKIE_SAMESITE == "None" and not AUTH_CSRF_COOKIE_SECURE:
-    raise ImproperlyConfigured("AUTH_CSRF_COOKIE_SECURE must be true when AUTH_CSRF_COOKIE_SAMESITE is None")
+    raise ImproperlyConfigured(
+        "AUTH_CSRF_COOKIE_SECURE must be true when AUTH_CSRF_COOKIE_SAMESITE is None"
+    )
 
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
@@ -214,11 +230,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "static/"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
