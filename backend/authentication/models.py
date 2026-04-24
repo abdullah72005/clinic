@@ -1,9 +1,10 @@
 from django.db import models
 import uuid
 from django.contrib.auth.models import AbstractUser
-from django.core.validators import RegexValidator
+from django.core.validators import MinValueValidator, RegexValidator
 
 # Create your models here.
+
 
 class User(AbstractUser):
     userId = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -24,13 +25,19 @@ class User(AbstractUser):
     )
     pfp = models.ImageField(upload_to="profile_pics/", blank=True, null=True)
 
+
 class Doctor(User):
     specialization = models.CharField(max_length=100)
     bio = models.TextField(blank=True, null=True, max_length=255)
     location = models.CharField(max_length=255)
+    yearsOfExperience = models.PositiveIntegerField(
+        default=0, validators=[MinValueValidator(0)]
+    )
+
 
 class Patient(User):
     medical_notes = models.TextField(blank=True, null=True, max_length=255)
+
 
 class MasterUser(User):
     pass

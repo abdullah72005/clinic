@@ -90,6 +90,43 @@ class RegistrationAPITests(TestCase):
         self.assertEqual(doctor.location, "Cairo")
         self.assertTrue(doctor.groups.filter(name="Doctor").exists())
 
+    def test_register_doctor_with_years_of_experience(self):
+        payload = {
+            "first_name": "Nora",
+            "last_name": "Saad",
+            "email": "nora@example.com",
+            "password": "StrongPass123",
+            "specialization": "Neurology",
+            "location": "Alexandria",
+            "yearsOfExperience": 12,
+        }
+
+        response = self.client.post("/api/auth/register-doctor/", data=payload)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["status"], "success")
+        doctor = Doctor.objects.get(email="nora@example.com")
+        self.assertEqual(doctor.yearsOfExperience, 12)
+
+    def test_register_doctor_negative_years_of_experience_returns_validation_error(
+        self,
+    ):
+        payload = {
+            "first_name": "Nora",
+            "last_name": "Saad",
+            "email": "nora-invalid@example.com",
+            "password": "StrongPass123",
+            "specialization": "Neurology",
+            "location": "Alexandria",
+            "yearsOfExperience": -1,
+        }
+
+        response = self.client.post("/api/auth/register-doctor/", data=payload)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["status"], "error")
+        self.assertIn("yearsOfExperience", response.json()["errors"])
+
     def test_register_patient_without_trailing_slash_success(self):
         payload = {
             "first_name": "NoSlash",
@@ -407,7 +444,9 @@ class AuthTokenFlowTests(TestCase):
         )
         refresh_token = login_response.json()["data"]["refresh_token"]
 
-        response = self.client.post("/api/auth/logout", data={"refresh_token": refresh_token})
+        response = self.client.post(
+            "/api/auth/logout", data={"refresh_token": refresh_token}
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "success")
