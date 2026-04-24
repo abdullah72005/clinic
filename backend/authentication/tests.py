@@ -146,6 +146,15 @@ class AuthTokenFlowTests(TestCase):
         self.assertIn("refresh_token", response.cookies)
         self.assertTrue(response.cookies["refresh_token"]["httponly"])
         self.assertEqual(response.cookies["refresh_token"]["path"], "/api/auth/")
+        self.assertIn("auth_csrf", response.cookies)
+        self.assertFalse(response.cookies["auth_csrf"]["httponly"])
+
+    def _login_and_get_csrf_header(self):
+        self.client.post(
+            "/api/auth/login/",
+            data={"email": "authuser@example.com", "password": "StrongPass123"},
+        )
+        return self.client.cookies["auth_csrf"].value
 
     def test_login_without_trailing_slash_success(self):
         response = self.client.post(
@@ -240,15 +249,38 @@ class AuthTokenFlowTests(TestCase):
         )
 
     def test_refresh_token_allows_cookie_fallback(self):
-        self.client.post(
-            "/api/auth/login/",
-            data={"email": "authuser@example.com", "password": "StrongPass123"},
-        )
+        csrf_header_value = self._login_and_get_csrf_header()
 
-        refresh_response = self.client.post("/api/auth/refresh-token/", data={})
+        refresh_response = self.client.post(
+            "/api/auth/refresh-token/",
+            data={},
+            HTTP_X_AUTH_CSRF=csrf_header_value,
+        )
         self.assertEqual(refresh_response.status_code, 200)
         self.assertEqual(refresh_response.json()["status"], "success")
         self.assertIn("refresh_token", refresh_response.cookies)
+
+    def test_refresh_token_cookie_fallback_missing_csrf_header_returns_forbidden(self):
+        self._login_and_get_csrf_header()
+
+        response = self.client.post("/api/auth/refresh-token/", data={})
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["status"], "error")
+        self.assertEqual(response.json()["errors"], {"csrf": ["auth.csrf.invalid"]})
+
+    def test_refresh_token_cookie_fallback_invalid_csrf_header_returns_forbidden(self):
+        self._login_and_get_csrf_header()
+
+        response = self.client.post(
+            "/api/auth/refresh-token/",
+            data={},
+            HTTP_X_AUTH_CSRF="invalid-header-token",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["status"], "error")
+        self.assertEqual(response.json()["errors"], {"csrf": ["auth.csrf.invalid"]})
 
     def test_refresh_token_without_trailing_slash_success(self):
         login_response = self.client.post(
@@ -334,16 +366,39 @@ class AuthTokenFlowTests(TestCase):
         self.assertEqual(refresh_after_logout_response.status_code, 401)
 
     def test_logout_allows_cookie_fallback(self):
-        self.client.post(
-            "/api/auth/login/",
-            data={"email": "authuser@example.com", "password": "StrongPass123"},
-        )
+        csrf_header_value = self._login_and_get_csrf_header()
 
-        response = self.client.post("/api/auth/logout/", data={})
+        response = self.client.post(
+            "/api/auth/logout/",
+            data={},
+            HTTP_X_AUTH_CSRF=csrf_header_value,
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "success")
         self.assertIn("refresh_token", response.cookies)
+
+    def test_logout_cookie_fallback_missing_csrf_header_returns_forbidden(self):
+        self._login_and_get_csrf_header()
+
+        response = self.client.post("/api/auth/logout/", data={})
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["status"], "error")
+        self.assertEqual(response.json()["errors"], {"csrf": ["auth.csrf.invalid"]})
+
+    def test_logout_cookie_fallback_invalid_csrf_header_returns_forbidden(self):
+        self._login_and_get_csrf_header()
+
+        response = self.client.post(
+            "/api/auth/logout/",
+            data={},
+            HTTP_X_AUTH_CSRF="invalid-header-token",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["status"], "error")
+        self.assertEqual(response.json()["errors"], {"csrf": ["auth.csrf.invalid"]})
 
     def test_logout_without_trailing_slash_success(self):
         login_response = self.client.post(
