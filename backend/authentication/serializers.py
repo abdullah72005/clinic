@@ -74,3 +74,11 @@ class RegisterDoctorSerializer(EmailValidationMixin, PasswordValidationMixin, se
 class LoginSerializer(EmailValidationMixin, serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
+
+
+class RefreshTokenSerializer(serializers.Serializer):
+    refresh_token = serializers.CharField(required=False, allow_blank=False)
+
+
+class LogoutSerializer(serializers.Serializer):
+    refresh_token = serializers.CharField(required=False, allow_blank=False)

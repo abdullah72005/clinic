@@ -12,9 +12,52 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 import os
+from datetime import timedelta
+from django.core.exceptions import ImproperlyConfigured
 
 def env_list(name, default=""):
     return [item.strip() for item in os.getenv(name, default).split(",") if item.strip()]
+
+
+def env_int(name, default):
+    raw_value = os.getenv(name)
+    if raw_value is None or raw_value.strip() == "":
+        return default
+    try:
+        return int(raw_value)
+    except ValueError as exc:
+        raise ImproperlyConfigured(f"{name} must be an integer. Got: {raw_value}") from exc
+
+
+def env_bool(name, default=False):
+    raw_value = os.getenv(name)
+    if raw_value is None or raw_value.strip() == "":
+        return default
+
+    normalized = raw_value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+
+    raise ImproperlyConfigured(
+        f"{name} must be a boolean value (true/false, 1/0, yes/no, on/off). Got: {raw_value}"
+    )
+
+
+def env_samesite(name, default="Lax"):
+    raw_value = os.getenv(name, default)
+    normalized = raw_value.strip().lower()
+    allowed = {
+        "lax": "Lax",
+        "strict": "Strict",
+        "none": "None",
+    }
+
+    if normalized not in allowed:
+        raise ImproperlyConfigured(f"{name} must be one of: Lax, Strict, None. Got: {raw_value}")
+
+    return allowed[normalized]
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -43,6 +86,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
     'authentication',
 ]
 AUTH_USER_MODEL = "authentication.User"
@@ -51,6 +95,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
+CORS_ALLOW_CREDENTIALS = env_bool("DJANGO_CORS_ALLOW_CREDENTIALS", False)
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -121,6 +166,37 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=env_int("JWT_ACCESS_MINUTES", 60)),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=env_int("JWT_REFRESH_DAYS", 7)),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "USER_ID_FIELD": "userId",
+    "USER_ID_CLAIM": "user_id",
+}
+
+AUTH_REFRESH_COOKIE_NAME = os.getenv("AUTH_REFRESH_COOKIE_NAME", "refresh_token")
+AUTH_REFRESH_COOKIE_SECURE = env_bool("AUTH_REFRESH_COOKIE_SECURE", False)
+AUTH_REFRESH_COOKIE_SAMESITE = env_samesite("AUTH_REFRESH_COOKIE_SAMESITE", "Lax")
+AUTH_CSRF_COOKIE_NAME = os.getenv("AUTH_CSRF_COOKIE_NAME", "auth_csrf")
+AUTH_CSRF_HEADER_NAME = os.getenv("AUTH_CSRF_HEADER_NAME", "X-Auth-CSRF")
+AUTH_CSRF_COOKIE_SECURE = env_bool("AUTH_CSRF_COOKIE_SECURE", AUTH_REFRESH_COOKIE_SECURE)
+AUTH_CSRF_COOKIE_SAMESITE = env_samesite("AUTH_CSRF_COOKIE_SAMESITE", AUTH_REFRESH_COOKIE_SAMESITE)
+
+if AUTH_REFRESH_COOKIE_SAMESITE == "None" and not AUTH_REFRESH_COOKIE_SECURE:
+    raise ImproperlyConfigured("AUTH_REFRESH_COOKIE_SECURE must be true when AUTH_REFRESH_COOKIE_SAMESITE is None")
+
+if AUTH_CSRF_COOKIE_SAMESITE == "None" and not AUTH_CSRF_COOKIE_SECURE:
+    raise ImproperlyConfigured("AUTH_CSRF_COOKIE_SECURE must be true when AUTH_CSRF_COOKIE_SAMESITE is None")
 
 
 # Internationalization
