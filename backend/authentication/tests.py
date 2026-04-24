@@ -1,4 +1,5 @@
 from django.test import TestCase
+from unittest.mock import patch
 
 from authentication.models import Doctor, Patient, User
 
@@ -474,3 +475,135 @@ class AuthTokenFlowTests(TestCase):
             response.json()["errors"],
             {"refresh_token": ["auth.refreshToken.required"]},
         )
+
+
+class AuthValidationDesignPatternTests(TestCase):
+    def _patient_payload(self, email, password, **overrides):
+        payload = {
+            "first_name": "Test",
+            "last_name": "Patient",
+            "email": email,
+            "password": password,
+        }
+        payload.update(overrides)
+        return payload
+
+    def _doctor_payload(self, email, years_of_experience, **overrides):
+        payload = {
+            "first_name": "Test",
+            "last_name": "Doctor",
+            "email": email,
+            "password": "StrongPass123",
+            "specialization": "Cardiology",
+            "location": "Cairo",
+            "yearsOfExperience": years_of_experience,
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_bva_password_length_accepts_minimum_and_rejects_below_minimum(self):
+        min_boundary_response = self.client.post(
+            "/api/auth/register-patient/",
+            data=self._patient_payload("bva-min@example.com", "Qx7mN2pR"),
+        )
+        below_min_response = self.client.post(
+            "/api/auth/register-patient/",
+            data=self._patient_payload("bva-below@example.com", "Aa12345"),
+        )
+
+        self.assertEqual(min_boundary_response.status_code, 201)
+        self.assertEqual(below_min_response.status_code, 400)
+        self.assertIn("password", below_min_response.json()["errors"])
+        self.assertIn(
+            "auth.password.minLength", below_min_response.json()["errors"]["password"]
+        )
+
+    def test_bva_password_length_accepts_128_and_rejects_129(self):
+        max_valid_password = "Aa1" + ("b" * 125)
+        above_max_password = max_valid_password + "c"
+
+        at_max_response = self.client.post(
+            "/api/auth/register-patient/",
+            data=self._patient_payload("bva-max@example.com", max_valid_password),
+        )
+        above_max_response = self.client.post(
+            "/api/auth/register-patient/",
+            data=self._patient_payload("bva-above@example.com", above_max_password),
+        )
+
+        self.assertEqual(at_max_response.status_code, 201)
+        self.assertEqual(above_max_response.status_code, 400)
+        self.assertIn("password", above_max_response.json()["errors"])
+        self.assertIn(
+            "auth.password.maxLength", above_max_response.json()["errors"]["password"]
+        )
+
+    def test_ep_phone_number_accepts_valid_partition_and_rejects_invalid_partition(self):
+        valid_partition_response = self.client.post(
+            "/api/auth/register-patient/",
+            data=self._patient_payload(
+                "phone-valid@example.com",
+                "StrongPass123",
+                phoneNo="01012345678",
+            ),
+        )
+        invalid_partition_response = self.client.post(
+            "/api/auth/register-patient/",
+            data=self._patient_payload(
+                "phone-invalid@example.com",
+                "StrongPass123",
+                phoneNo="01912345678",
+            ),
+        )
+
+        self.assertEqual(valid_partition_response.status_code, 201)
+        self.assertEqual(invalid_partition_response.status_code, 400)
+        self.assertIn("phoneNo", invalid_partition_response.json()["errors"])
+
+    def test_bva_years_of_experience_accepts_zero_and_rejects_negative(self):
+        zero_boundary_response = self.client.post(
+            "/api/auth/register-doctor/",
+            data=self._doctor_payload("years-zero@example.com", 0),
+        )
+        negative_boundary_response = self.client.post(
+            "/api/auth/register-doctor/",
+            data=self._doctor_payload("years-negative@example.com", -1),
+        )
+
+        self.assertEqual(zero_boundary_response.status_code, 201)
+        self.assertEqual(negative_boundary_response.status_code, 400)
+        self.assertIn("yearsOfExperience", negative_boundary_response.json()["errors"])
+
+    def test_ep_blank_refresh_token_is_rejected_for_refresh_and_logout(self):
+        refresh_response = self.client.post(
+            "/api/auth/refresh-token/",
+            data={"refresh_token": ""},
+        )
+        logout_response = self.client.post(
+            "/api/auth/logout/",
+            data={"refresh_token": ""},
+        )
+
+        self.assertEqual(refresh_response.status_code, 400)
+        self.assertEqual(logout_response.status_code, 400)
+        self.assertIn("refresh_token", refresh_response.json()["errors"])
+        self.assertIn("refresh_token", logout_response.json()["errors"])
+
+    def test_decision_table_unexpected_error_maps_to_500(self):
+        mocked_response = {
+            "status": "error",
+            "message": "An unexpected error occurred",
+            "errors": {"unexpected": ["auth.unexpected"]},
+        }
+
+        with patch(
+            "authentication.views.AuthService.register_patient",
+            return_value=mocked_response,
+        ):
+            response = self.client.post(
+                "/api/auth/register-patient/",
+                data=self._patient_payload("unexpected@example.com", "StrongPass123"),
+            )
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.json()["message"], "An unexpected error occurred")

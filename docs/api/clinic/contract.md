@@ -12,7 +12,7 @@ Last updated: 2026-04-24
 ## Authentication
 
 - Protected endpoints require JWT access token from the auth module.
-- Auth API details (register/login/refresh/logout): `backend/authentication/AUTH_API_DOC.md`
+- Auth API details (register/login/refresh/logout): `docs/api/authentication.md`
 - Header format:
 
 ```http

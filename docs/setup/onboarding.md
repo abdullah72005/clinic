@@ -75,7 +75,7 @@ When it is ready, open:
 ## 6) Day-to-day commands
 
 For one-off commands inside running containers (for example Django tests, migrations, and npm scripts), use the companion guide:
-- DOCKER_EXEC_COMMANDS.md
+- ../docker/exec-commands.md
 
 Build images only (do this after changing Dockerfiles, requirements, or package files):
 

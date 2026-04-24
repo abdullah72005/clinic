@@ -54,8 +54,24 @@ class PasswordValidationMixin:
         return value
 
 
+class PhoneValidationMixin:
+    """Validates optional Egyptian phone numbers used by registration endpoints."""
+
+    def validate_phoneNo(self, value):
+        if value in (None, ""):
+            return value
+
+        if not re.fullmatch(r"^01[0125][0-9]{8}$", value):
+            raise serializers.ValidationError("auth.phone.invalid")
+
+        return value
+
+
 class RegisterPatientSerializer(
-    EmailValidationMixin, PasswordValidationMixin, serializers.Serializer
+    EmailValidationMixin,
+    PasswordValidationMixin,
+    PhoneValidationMixin,
+    serializers.Serializer,
 ):
     first_name = serializers.CharField(max_length=150)
     last_name = serializers.CharField(max_length=150)
@@ -68,7 +84,10 @@ class RegisterPatientSerializer(
 
 
 class RegisterDoctorSerializer(
-    EmailValidationMixin, PasswordValidationMixin, serializers.Serializer
+    EmailValidationMixin,
+    PasswordValidationMixin,
+    PhoneValidationMixin,
+    serializers.Serializer,
 ):
     first_name = serializers.CharField(max_length=150)
     last_name = serializers.CharField(max_length=150)

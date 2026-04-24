@@ -522,3 +522,219 @@ class ClinicSystemAPITests(TestCase):
             format="json",
         )
         self.assertEqual(forbidden_update.status_code, 403)
+
+    def test_ep_doctor_search_rejects_non_integer_years_filter(self):
+        self.client.force_authenticate(user=self.patient)
+        response = self.client.get("/api/clinic/doctors/?yearsOfExperience=ten")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json()["yearsOfExperience"],
+            ["yearsOfExperience must be an integer"],
+        )
+
+    def test_bva_schedule_creation_rejects_equal_start_and_end_time(self):
+        target_date = timezone.now().date() + timedelta(days=3)
+
+        self.client.force_authenticate(user=self.doctor)
+        response = self.client.post(
+            "/api/clinic/doctor-schedules/",
+            {
+                "date": target_date.isoformat(),
+                "startTime": "09:00:00",
+                "endTime": "09:00:00",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json()["startTime"], ["startTime must be before endTime"]
+        )
+
+    def test_ep_schedule_creation_rejects_overlapping_partitions(self):
+        target_date = timezone.now().date() + timedelta(days=4)
+
+        self.client.force_authenticate(user=self.doctor)
+        first_response = self.client.post(
+            "/api/clinic/doctor-schedules/",
+            {
+                "date": target_date.isoformat(),
+                "startTime": "09:00:00",
+                "endTime": "11:00:00",
+            },
+            format="json",
+        )
+        overlapping_response = self.client.post(
+            "/api/clinic/doctor-schedules/",
+            {
+                "date": target_date.isoformat(),
+                "startTime": "10:00:00",
+                "endTime": "12:00:00",
+            },
+            format="json",
+        )
+
+        self.assertEqual(first_response.status_code, 201)
+        self.assertEqual(overlapping_response.status_code, 400)
+        self.assertEqual(
+            overlapping_response.json()["date"],
+            ["Schedule overlaps with an existing schedule"],
+        )
+
+    def test_ep_recurring_schedule_rejects_duplicate_working_days(self):
+        start_date = timezone.now().date() + timedelta(days=3)
+        end_date = start_date + timedelta(days=7)
+
+        self.client.force_authenticate(user=self.doctor)
+        response = self.client.post(
+            "/api/clinic/doctor-schedules/recurring/",
+            {
+                "startDate": start_date.isoformat(),
+                "endDate": end_date.isoformat(),
+                "workingDays": [0, 0],
+                "startTime": "09:00:00",
+                "endTime": "11:00:00",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json()["workingDays"], ["workingDays must contain unique values"]
+        )
+
+    def test_bva_review_rating_accepts_edges_and_rejects_outside_range(self):
+        slot_date = timezone.now().date() + timedelta(days=2)
+        slot_windows = [
+            (time(9, 0), time(9, 30)),
+            (time(9, 30), time(10, 0)),
+            (time(10, 0), time(10, 30)),
+            (time(10, 30), time(11, 0)),
+        ]
+
+        appointment_ids = []
+        for start_time, end_time in slot_windows:
+            _, slot = self._create_slot(self.doctor, slot_date, start_time, end_time)
+            booking_response = self._book_slot(self.patient, slot)
+            appointment_id = booking_response.json()["id"]
+            self._complete_appointment(self.doctor, appointment_id)
+            appointment_ids.append(appointment_id)
+
+        self.client.force_authenticate(user=self.patient)
+        ratings_with_expected_codes = [
+            (appointment_ids[0], 1, 201),
+            (appointment_ids[1], 5, 201),
+            (appointment_ids[2], 0, 400),
+            (appointment_ids[3], 6, 400),
+        ]
+
+        for appointment_id, rating_value, expected_status in ratings_with_expected_codes:
+            response = self.client.post(
+                "/api/clinic/reviews/",
+                {
+                    "appointmentId": appointment_id,
+                    "rating": rating_value,
+                    "comment": f"Rating test {rating_value}",
+                },
+                format="json",
+            )
+            self.assertEqual(response.status_code, expected_status)
+            if expected_status == 400:
+                self.assertIn("rating", response.json())
+
+    def test_bva_admin_doctor_years_of_experience_accepts_zero_rejects_negative(self):
+        self.client.force_authenticate(user=self.admin)
+
+        zero_response = self.client.patch(
+            f"/api/clinic/admin/doctors/{self.doctor.userId}/",
+            {"yearsOfExperience": 0},
+            format="json",
+        )
+        negative_response = self.client.patch(
+            f"/api/clinic/admin/doctors/{self.doctor.userId}/",
+            {"yearsOfExperience": -1},
+            format="json",
+        )
+
+        self.assertEqual(zero_response.status_code, 200)
+        self.assertEqual(negative_response.status_code, 400)
+        self.assertEqual(
+            negative_response.json()["yearsOfExperience"],
+            ["Must be greater than or equal to 0"],
+        )
+
+    def test_ep_admin_doctor_years_of_experience_rejects_non_integer_partition(self):
+        self.client.force_authenticate(user=self.admin)
+
+        response = self.client.patch(
+            f"/api/clinic/admin/doctors/{self.doctor.userId}/",
+            {"yearsOfExperience": "ten"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["yearsOfExperience"], ["Must be an integer"])
+
+    def test_state_transition_admin_appointment_cannot_change_status_after_completion(self):
+        slot_date = timezone.now().date() + timedelta(days=3)
+        _, slot = self._create_slot(self.doctor, slot_date, time(14, 0), time(14, 30))
+        booking = self._book_slot(self.patient, slot)
+        appointment_id = booking.json()["id"]
+
+        self.client.force_authenticate(user=self.admin)
+        complete_response = self.client.patch(
+            f"/api/clinic/admin/appointments/{appointment_id}/",
+            {"status": AppointmentStatus.COMPLETED},
+            format="json",
+        )
+        second_transition_response = self.client.patch(
+            f"/api/clinic/admin/appointments/{appointment_id}/",
+            {"status": AppointmentStatus.CANCELLED},
+            format="json",
+        )
+
+        self.assertEqual(complete_response.status_code, 200)
+        self.assertEqual(second_transition_response.status_code, 400)
+        self.assertEqual(
+            second_transition_response.json()["status"],
+            ["Only booked appointments can change status"],
+        )
+
+    def test_decision_table_admin_appointment_rejects_unknown_status(self):
+        slot_date = timezone.now().date() + timedelta(days=3)
+        _, slot = self._create_slot(self.doctor, slot_date, time(15, 0), time(15, 30))
+        booking = self._book_slot(self.patient, slot)
+        appointment_id = booking.json()["id"]
+
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.patch(
+            f"/api/clinic/admin/appointments/{appointment_id}/",
+            {"status": "rescheduled"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json()["status"],
+            ["Invalid status transition"],
+        )
+
+    def test_ep_admin_appointment_patch_requires_updatable_fields(self):
+        slot_date = timezone.now().date() + timedelta(days=3)
+        _, slot = self._create_slot(self.doctor, slot_date, time(16, 0), time(16, 30))
+        booking = self._book_slot(self.patient, slot)
+        appointment_id = booking.json()["id"]
+
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.patch(
+            f"/api/clinic/admin/appointments/{appointment_id}/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json()["detail"],
+            ["Provide at least one updatable field"],
+        )
