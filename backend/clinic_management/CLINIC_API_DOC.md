@@ -354,6 +354,7 @@ Rules:
 
 - source appointment must belong to doctor
 - source appointment must already be `completed`
+- target `timeSlotId` must belong to the same doctor
 - follow-up booking uses the same booking validation rules as normal booking
 
 ### GET `/api/clinic/appointments/today/`
@@ -375,6 +376,10 @@ Public paginated list of reviews.
 Query params:
 
 - `doctorId` (optional filter)
+
+Validation:
+
+- invalid `doctorId` UUID -> `400`
 
 ### GET `/api/clinic/reviews/{id}/`
 
@@ -474,6 +479,10 @@ Rules:
 
 - doctor can update only diagnoses created by that doctor
 - admin can update any diagnosis
+
+Access behavior:
+
+- if a doctor requests a diagnosis they do not own by ID, response is `404`
 
 ---
 
