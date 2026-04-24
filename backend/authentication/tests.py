@@ -89,3 +89,294 @@ class RegistrationAPITests(TestCase):
         self.assertEqual(doctor.specialization, "Cardiology")
         self.assertEqual(doctor.location, "Cairo")
         self.assertTrue(doctor.groups.filter(name="Doctor").exists())
+
+    def test_register_patient_without_trailing_slash_success(self):
+        payload = {
+            "first_name": "NoSlash",
+            "last_name": "Patient",
+            "email": "noslash-patient@example.com",
+            "password": "StrongPass123",
+        }
+
+        response = self.client.post("/api/auth/register-patient", data=payload)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["status"], "success")
+
+    def test_register_doctor_without_trailing_slash_success(self):
+        payload = {
+            "first_name": "NoSlash",
+            "last_name": "Doctor",
+            "email": "noslash-doctor@example.com",
+            "password": "StrongPass123",
+            "specialization": "Dermatology",
+            "location": "Giza",
+        }
+
+        response = self.client.post("/api/auth/register-doctor", data=payload)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["status"], "success")
+
+
+class AuthTokenFlowTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="authuser@example.com",
+            email="authuser@example.com",
+            password="StrongPass123",
+            first_name="Auth",
+            last_name="User",
+            fullName="Auth User",
+        )
+
+    def test_login_success_returns_tokens_and_cookie(self):
+        response = self.client.post(
+            "/api/auth/login/",
+            data={"email": "authuser@example.com", "password": "StrongPass123"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["status"], "success")
+        self.assertEqual(body["message"], "Login successful.")
+        self.assertIn("access_token", body["data"])
+        self.assertIn("refresh_token", body["data"])
+        self.assertIn("access_token_expires_in", body["data"])
+        self.assertIn("refresh_token", response.cookies)
+        self.assertTrue(response.cookies["refresh_token"]["httponly"])
+        self.assertEqual(response.cookies["refresh_token"]["path"], "/api/auth/")
+
+    def test_login_without_trailing_slash_success(self):
+        response = self.client.post(
+            "/api/auth/login",
+            data={"email": "authuser@example.com", "password": "StrongPass123"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "success")
+
+    def test_login_email_is_normalized(self):
+        response = self.client.post(
+            "/api/auth/login/",
+            data={"email": "  AUTHUSER@EXAMPLE.COM ", "password": "StrongPass123"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"]["email"], "authuser@example.com")
+
+    def test_login_missing_password_returns_validation_error(self):
+        response = self.client.post(
+            "/api/auth/login/",
+            data={"email": "authuser@example.com"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["status"], "error")
+        self.assertIn("password", response.json()["errors"])
+
+    def test_login_inactive_user_returns_generic_unauthorized(self):
+        self.user.is_active = False
+        self.user.save(update_fields=["is_active"])
+
+        response = self.client.post(
+            "/api/auth/login/",
+            data={"email": "authuser@example.com", "password": "StrongPass123"},
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json()["errors"],
+            {"credentials": ["auth.login.invalidCredentials"]},
+        )
+
+    def test_login_invalid_credentials_returns_unauthorized_with_generic_error(self):
+        wrong_password_response = self.client.post(
+            "/api/auth/login/",
+            data={"email": "authuser@example.com", "password": "WrongPassword123"},
+        )
+        wrong_email_response = self.client.post(
+            "/api/auth/login/",
+            data={"email": "missing@example.com", "password": "WrongPassword123"},
+        )
+
+        self.assertEqual(wrong_password_response.status_code, 401)
+        self.assertEqual(wrong_email_response.status_code, 401)
+        self.assertEqual(
+            wrong_password_response.json()["message"],
+            wrong_email_response.json()["message"],
+        )
+        self.assertEqual(
+            wrong_password_response.json()["errors"],
+            {"credentials": ["auth.login.invalidCredentials"]},
+        )
+
+    def test_refresh_token_success_rotates_token_and_rejects_reuse(self):
+        login_response = self.client.post(
+            "/api/auth/login/",
+            data={"email": "authuser@example.com", "password": "StrongPass123"},
+        )
+        refresh_token = login_response.json()["data"]["refresh_token"]
+
+        refresh_response = self.client.post(
+            "/api/auth/refresh-token/",
+            data={"refresh_token": refresh_token},
+        )
+
+        self.assertEqual(refresh_response.status_code, 200)
+        refreshed_data = refresh_response.json()["data"]
+        self.assertIn("access_token", refreshed_data)
+        self.assertIn("refresh_token", refreshed_data)
+        self.assertNotEqual(refreshed_data["refresh_token"], refresh_token)
+
+        reused_token_response = self.client.post(
+            "/api/auth/refresh-token/",
+            data={"refresh_token": refresh_token},
+        )
+        self.assertEqual(reused_token_response.status_code, 401)
+        self.assertEqual(
+            reused_token_response.json()["errors"],
+            {"refresh_token": ["auth.refreshToken.invalid"]},
+        )
+
+    def test_refresh_token_allows_cookie_fallback(self):
+        self.client.post(
+            "/api/auth/login/",
+            data={"email": "authuser@example.com", "password": "StrongPass123"},
+        )
+
+        refresh_response = self.client.post("/api/auth/refresh-token/", data={})
+        self.assertEqual(refresh_response.status_code, 200)
+        self.assertEqual(refresh_response.json()["status"], "success")
+        self.assertIn("refresh_token", refresh_response.cookies)
+
+    def test_refresh_token_without_trailing_slash_success(self):
+        login_response = self.client.post(
+            "/api/auth/login/",
+            data={"email": "authuser@example.com", "password": "StrongPass123"},
+        )
+        refresh_token = login_response.json()["data"]["refresh_token"]
+
+        response = self.client.post(
+            "/api/auth/refresh-token",
+            data={"refresh_token": refresh_token},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "success")
+
+    def test_refresh_token_missing_token_without_cookie_returns_validation_error(self):
+        self.client.cookies.clear()
+
+        response = self.client.post("/api/auth/refresh-token/", data={})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["status"], "error")
+        self.assertEqual(
+            response.json()["errors"],
+            {"refresh_token": ["auth.refreshToken.required"]},
+        )
+
+    def test_refresh_token_for_inactive_user_returns_unauthorized(self):
+        login_response = self.client.post(
+            "/api/auth/login/",
+            data={"email": "authuser@example.com", "password": "StrongPass123"},
+        )
+        refresh_token = login_response.json()["data"]["refresh_token"]
+
+        self.user.is_active = False
+        self.user.save(update_fields=["is_active"])
+
+        refresh_response = self.client.post(
+            "/api/auth/refresh-token/",
+            data={"refresh_token": refresh_token},
+        )
+
+        self.assertEqual(refresh_response.status_code, 401)
+        self.assertEqual(
+            refresh_response.json()["errors"],
+            {"refresh_token": ["auth.refreshToken.invalid"]},
+        )
+
+    def test_refresh_token_invalid_returns_unauthorized(self):
+        response = self.client.post(
+            "/api/auth/refresh-token/",
+            data={"refresh_token": "invalid.token.value"},
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()["status"], "error")
+        self.assertEqual(
+            response.json()["errors"],
+            {"refresh_token": ["auth.refreshToken.invalid"]},
+        )
+
+    def test_logout_success_blacklists_token(self):
+        login_response = self.client.post(
+            "/api/auth/login/",
+            data={"email": "authuser@example.com", "password": "StrongPass123"},
+        )
+        refresh_token = login_response.json()["data"]["refresh_token"]
+
+        logout_response = self.client.post(
+            "/api/auth/logout/",
+            data={"refresh_token": refresh_token},
+        )
+
+        self.assertEqual(logout_response.status_code, 200)
+        self.assertEqual(logout_response.json()["status"], "success")
+        self.assertTrue(logout_response.json()["data"]["logged_out"])
+
+        refresh_after_logout_response = self.client.post(
+            "/api/auth/refresh-token/",
+            data={"refresh_token": refresh_token},
+        )
+        self.assertEqual(refresh_after_logout_response.status_code, 401)
+
+    def test_logout_allows_cookie_fallback(self):
+        self.client.post(
+            "/api/auth/login/",
+            data={"email": "authuser@example.com", "password": "StrongPass123"},
+        )
+
+        response = self.client.post("/api/auth/logout/", data={})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "success")
+        self.assertIn("refresh_token", response.cookies)
+
+    def test_logout_without_trailing_slash_success(self):
+        login_response = self.client.post(
+            "/api/auth/login/",
+            data={"email": "authuser@example.com", "password": "StrongPass123"},
+        )
+        refresh_token = login_response.json()["data"]["refresh_token"]
+
+        response = self.client.post("/api/auth/logout", data={"refresh_token": refresh_token})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "success")
+
+    def test_logout_invalid_refresh_token_returns_unauthorized(self):
+        response = self.client.post(
+            "/api/auth/logout/",
+            data={"refresh_token": "invalid.token.value"},
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json()["errors"],
+            {"refresh_token": ["auth.refreshToken.invalid"]},
+        )
+
+    def test_logout_missing_token_returns_validation_error(self):
+        self.client.cookies.clear()
+
+        response = self.client.post("/api/auth/logout/", data={})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["status"], "error")
+        self.assertEqual(
+            response.json()["errors"],
+            {"refresh_token": ["auth.refreshToken.required"]},
+        )

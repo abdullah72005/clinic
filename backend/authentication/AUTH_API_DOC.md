@@ -2,7 +2,7 @@
 
 This document is the frontend-facing auth API contract.
 
-Last updated: 2026-04-19
+Last updated: 2026-04-24
 
 ## Endpoint Status
 
@@ -10,9 +10,9 @@ Last updated: 2026-04-19
 | --- | --- | --- |
 | /api/auth/register-patient and /api/auth/register-patient/ | POST | Implemented |
 | /api/auth/register-doctor and /api/auth/register-doctor/ | POST | Implemented |
-| /api/auth/login | POST | Planned (not implemented yet) |
-| /api/auth/refresh-token | POST | Planned (not implemented yet) |
-| /api/auth/logout | POST | Planned (not implemented yet) |
+| /api/auth/login and /api/auth/login/ | POST | Implemented |
+| /api/auth/refresh-token and /api/auth/refresh-token/ | POST | Implemented |
+| /api/auth/logout and /api/auth/logout/ | POST | Implemented |
 
 ## Common Response Envelope
 
@@ -182,17 +182,14 @@ Error behavior matches Register Patient.
 - No spaces
 - Django password validators also apply
 
-## Planned Endpoints (Not Implemented Yet)
-
-These endpoints stay in the contract so frontend work can continue, but they are currently not available on backend.
-
-## 3) Login (Planned)
+## 3) Login
 
 - Method: POST
-- URL: /api/auth/login
-- Status: Planned
+- URL (canonical): /api/auth/login/
+- Also accepted: /api/auth/login
+- Auth required: No
 
-Planned request body:
+Request body:
 
 ```json
 {
@@ -201,7 +198,7 @@ Planned request body:
 }
 ```
 
-Planned success response:
+Success response (200 OK):
 
 ```json
 {
@@ -210,18 +207,28 @@ Planned success response:
   "data": {
     "userId": "uuid",
     "email": "doctor@example.com",
-    "fullName": "Dr John Doe"
+    "fullName": "Dr John Doe",
+    "access_token": "<jwt_access_token>",
+    "refresh_token": "<jwt_refresh_token>",
+    "access_token_expires_in": 3600
   }
 }
 ```
 
-## 4) Refresh Token (Planned)
+Error responses:
+
+- 400 Bad Request for validation errors.
+- 401 Unauthorized for invalid email/password.
+- 500 Internal Server Error for unexpected failures.
+
+## 4) Refresh Token
 
 - Method: POST
-- URL: /api/auth/refresh-token
-- Status: Planned
+- URL (canonical): /api/auth/refresh-token/
+- Also accepted: /api/auth/refresh-token
+- Auth required: No
 
-Planned request body:
+Request body:
 
 ```json
 {
@@ -229,25 +236,51 @@ Planned request body:
 }
 ```
 
-Planned success response:
+Notes:
+
+- refresh_token can be sent in body or via httpOnly cookie.
+- On success, refresh token is rotated and a new refresh token is returned.
+
+Success response (200 OK):
 
 ```json
 {
   "status": "success",
   "message": "Access token refreshed successfully.",
   "data": {
+    "access_token": "<jwt_access_token>",
+    "refresh_token": "<jwt_refresh_token>",
     "access_token_expires_in": 3600
   }
 }
 ```
 
-## 5) Logout (Planned)
+Error responses:
+
+- 400 Bad Request if refresh token is missing.
+- 401 Unauthorized if refresh token is invalid or expired.
+- 500 Internal Server Error for unexpected failures.
+
+## 5) Logout
 
 - Method: POST
-- URL: /api/auth/logout
-- Status: Planned
+- URL (canonical): /api/auth/logout/
+- Also accepted: /api/auth/logout
+- Auth required: No
 
-Planned success response:
+Request body:
+
+```json
+{
+  "refresh_token": "<token>"
+}
+```
+
+Notes:
+
+- refresh_token can be sent in body or via httpOnly cookie.
+
+Success response (200 OK):
 
 ```json
 {
@@ -259,7 +292,14 @@ Planned success response:
 }
 ```
 
+Error responses:
+
+- 400 Bad Request if refresh token is missing.
+- 401 Unauthorized if refresh token is invalid or expired.
+- 500 Internal Server Error for unexpected failures.
+
 ## Changelog
 
+- v0.3 (2026-04-24): Implemented login, refresh-token, and logout endpoints with JWT rotation and logout revocation.
 - v0.2 (2026-04-19): Updated register endpoints to match current backend implementation and marked login/refresh/logout as planned.
 - v0.1 (2026-04-19): Initial draft.

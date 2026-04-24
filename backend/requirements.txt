@@ -3,4 +3,5 @@ psycopg[binary]
 gunicorn
 django-cors-headers
 djangorestframework
+djangorestframework-simplejwt
 Pillow
