@@ -21,7 +21,6 @@ UserModel = get_user_model()
 
 
 class AuthService:
-
     @staticmethod
     def _validation_error_response(detail):
         return {
@@ -79,7 +78,9 @@ class AuthService:
         return None
 
     @classmethod
-    def register_patient(cls, request_data: Dict[str, Any], request=None) -> Dict[str, Any]:
+    def register_patient(
+        cls, request_data: Dict[str, Any], request=None
+    ) -> Dict[str, Any]:
         try:
             with transaction.atomic():
                 serializer = RegisterPatientSerializer(data=request_data)
@@ -88,7 +89,7 @@ class AuthService:
 
                 validated_data = serializer.validated_data
 
-                if User.objects.filter(email=validated_data['email']).exists():
+                if User.objects.filter(email=validated_data["email"]).exists():
                     return {
                         "status": "error",
                         "message": "Email already registered",
@@ -97,14 +98,14 @@ class AuthService:
 
                 full_name = f"{validated_data['first_name']} {validated_data['last_name']}".strip()
                 user = Patient.objects.create_user(
-                    username=validated_data['email'],
-                    email=validated_data['email'],
-                    password=validated_data['password'],
-                    first_name=validated_data['first_name'],
-                    last_name=validated_data['last_name'],
+                    username=validated_data["email"],
+                    email=validated_data["email"],
+                    password=validated_data["password"],
+                    first_name=validated_data["first_name"],
+                    last_name=validated_data["last_name"],
                     fullName=full_name,
-                    phoneNo=validated_data.get('phoneNo') or None,
-                    medical_notes=validated_data.get('medical_notes', ''),
+                    phoneNo=validated_data.get("phoneNo") or None,
+                    medical_notes=validated_data.get("medical_notes", ""),
                 )
 
                 patient_group, _ = Group.objects.get_or_create(name="Patient")
@@ -118,16 +119,17 @@ class AuthService:
                         "email": user.email,
                         "fullName": user.fullName,
                         "createdAt": user.createdAt.isoformat(),
-                    }
+                    },
                 }
         except serializers.ValidationError as e:
             return cls._validation_error_response(e.detail)
         except Exception:
             return cls._unexpected_error_response()
 
-
     @classmethod
-    def register_doctor(cls, request_data: Dict[str, Any], request=None) -> Dict[str, Any]:
+    def register_doctor(
+        cls, request_data: Dict[str, Any], request=None
+    ) -> Dict[str, Any]:
 
         try:
             with transaction.atomic():
@@ -137,7 +139,7 @@ class AuthService:
 
                 validated_data = serializer.validated_data
 
-                if User.objects.filter(email=validated_data['email']).exists():
+                if User.objects.filter(email=validated_data["email"]).exists():
                     return {
                         "status": "error",
                         "message": "Email already registered",
@@ -146,16 +148,17 @@ class AuthService:
 
                 full_name = f"{validated_data['first_name']} {validated_data['last_name']}".strip()
                 user = Doctor.objects.create_user(
-                    username=validated_data['email'],
-                    email=validated_data['email'],
-                    password=validated_data['password'],
-                    first_name=validated_data['first_name'],
-                    last_name=validated_data['last_name'],
+                    username=validated_data["email"],
+                    email=validated_data["email"],
+                    password=validated_data["password"],
+                    first_name=validated_data["first_name"],
+                    last_name=validated_data["last_name"],
                     fullName=full_name,
-                    phoneNo=validated_data.get('phoneNo') or None,
-                    specialization=validated_data['specialization'],
-                    bio=validated_data.get('bio', ''),
-                    location=validated_data['location'],
+                    phoneNo=validated_data.get("phoneNo") or None,
+                    specialization=validated_data["specialization"],
+                    bio=validated_data.get("bio", ""),
+                    location=validated_data["location"],
+                    yearsOfExperience=validated_data.get("yearsOfExperience", 0),
                 )
 
                 doctor_group, _ = Group.objects.get_or_create(name="Doctor")
@@ -172,7 +175,8 @@ class AuthService:
                         "specialization": user.specialization,
                         "bio": user.bio,
                         "location": user.location,
-                    }
+                        "yearsOfExperience": user.yearsOfExperience,
+                    },
                 }
         except serializers.ValidationError as e:
             return cls._validation_error_response(e.detail)
@@ -218,13 +222,17 @@ class AuthService:
             return cls._unexpected_error_response()
 
     @classmethod
-    def refresh_token(cls, request_data: Dict[str, Any], request=None) -> Dict[str, Any]:
+    def refresh_token(
+        cls, request_data: Dict[str, Any], request=None
+    ) -> Dict[str, Any]:
         try:
             serializer = RefreshTokenSerializer(data=request_data)
             if not serializer.is_valid():
                 raise serializers.ValidationError(serializer.errors)
 
-            refresh_token = cls._extract_refresh_token(serializer.validated_data, request=request)
+            refresh_token = cls._extract_refresh_token(
+                serializer.validated_data, request=request
+            )
             if not refresh_token:
                 return cls._refresh_token_required_response()
 
@@ -262,7 +270,9 @@ class AuthService:
             if not serializer.is_valid():
                 raise serializers.ValidationError(serializer.errors)
 
-            refresh_token = cls._extract_refresh_token(serializer.validated_data, request=request)
+            refresh_token = cls._extract_refresh_token(
+                serializer.validated_data, request=request
+            )
             if not refresh_token:
                 return cls._refresh_token_required_response()
 

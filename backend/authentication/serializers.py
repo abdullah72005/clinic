@@ -9,11 +9,13 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
+
 class EmailValidationMixin:
     """Ensures email is normalized to lowercase."""
 
     def validate_email(self, value):
         return value.strip().lower()
+
 
 class PasswordValidationMixin:
     """Validates password strength using Django validators and custom length requirements."""
@@ -51,16 +53,23 @@ class PasswordValidationMixin:
 
         return value
 
-class RegisterPatientSerializer(EmailValidationMixin, PasswordValidationMixin, serializers.Serializer):
+
+class RegisterPatientSerializer(
+    EmailValidationMixin, PasswordValidationMixin, serializers.Serializer
+):
     first_name = serializers.CharField(max_length=150)
     last_name = serializers.CharField(max_length=150)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
     phoneNo = serializers.CharField(max_length=11, required=False, allow_blank=True)
-    medical_notes = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    medical_notes = serializers.CharField(
+        max_length=255, required=False, allow_blank=True
+    )
 
 
-class RegisterDoctorSerializer(EmailValidationMixin, PasswordValidationMixin, serializers.Serializer):
+class RegisterDoctorSerializer(
+    EmailValidationMixin, PasswordValidationMixin, serializers.Serializer
+):
     first_name = serializers.CharField(max_length=150)
     last_name = serializers.CharField(max_length=150)
     email = serializers.EmailField()
@@ -69,6 +78,7 @@ class RegisterDoctorSerializer(EmailValidationMixin, PasswordValidationMixin, se
     specialization = serializers.CharField(max_length=100)
     bio = serializers.CharField(max_length=255, required=False, allow_blank=True)
     location = serializers.CharField(max_length=255)
+    yearsOfExperience = serializers.IntegerField(min_value=0, required=False, default=0)
 
 
 class LoginSerializer(EmailValidationMixin, serializers.Serializer):
