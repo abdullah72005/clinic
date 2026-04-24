@@ -179,6 +179,18 @@ class AppointmentService:
                 }
             )
 
+        target_slot_doctor_id = (
+            TimeSlot.objects.filter(pk=time_slot_id)
+            .values_list("scheduleId__doctorId_id", flat=True)
+            .first()
+        )
+        if target_slot_doctor_id is None:
+            raise ValidationError({"timeSlotId": ["Time slot does not exist"]})
+        if target_slot_doctor_id != doctor.pk:
+            raise ValidationError(
+                {"timeSlotId": ["Follow-up time slot must belong to the same doctor"]}
+            )
+
         return AppointmentService.book_appointment(
             patient=source_appointment.patientId,
             time_slot_id=time_slot_id,

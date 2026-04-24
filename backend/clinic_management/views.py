@@ -1,7 +1,8 @@
 from datetime import timedelta
+from uuid import UUID
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
@@ -164,9 +165,14 @@ class DoctorScheduleViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         if doctor is None:
             return DoctorSchedule.objects.none()
 
+        slots_with_schedule = TimeSlot.objects.select_related(
+            "scheduleId",
+            "scheduleId__doctorId",
+        ).order_by("startTime")
+
         return (
             DoctorSchedule.objects.filter(doctorId=doctor)
-            .prefetch_related("timeSlots")
+            .prefetch_related(Prefetch("timeSlots", queryset=slots_with_schedule))
             .order_by("date", "startTime")
         )
 
@@ -375,7 +381,13 @@ class ReviewViewSet(
 
         doctor_id = self.request.query_params.get("doctorId")
         if doctor_id:
-            queryset = queryset.filter(doctorId_id=doctor_id)
+            try:
+                doctor_uuid = UUID(doctor_id)
+            except ValueError as exc:
+                raise ValidationError(
+                    {"doctorId": ["doctorId must be a valid UUID"]}
+                ) from exc
+            queryset = queryset.filter(doctorId_id=doctor_uuid)
 
         return queryset
 
@@ -432,8 +444,6 @@ class PatientDiagnosisViewSet(
 
         doctor = get_doctor_for_user(self.request.user)
         if doctor is not None:
-            if self.action in {"update", "partial_update"}:
-                return queryset
             return queryset.filter(doctorId=doctor)
 
         patient = get_patient_for_user(self.request.user)

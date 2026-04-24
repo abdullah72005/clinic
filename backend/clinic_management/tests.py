@@ -244,6 +244,32 @@ class ClinicSystemAPITests(TestCase):
         self.assertEqual(new_appointment.patientId_id, self.patient.userId)
         self.assertEqual(new_appointment.status, AppointmentStatus.BOOKED)
 
+    def test_doctor_cannot_create_follow_up_on_another_doctor_slot(self):
+        slot_date = timezone.now().date() + timedelta(days=2)
+        _, first_slot = self._create_slot(
+            self.doctor, slot_date, time(7, 0), time(7, 30)
+        )
+        _, foreign_doctor_slot = self._create_slot(
+            self.other_doctor, slot_date, time(7, 30), time(8, 0)
+        )
+
+        booking = self._book_slot(self.patient, first_slot)
+        appointment_id = booking.json()["id"]
+        self._complete_appointment(self.doctor, appointment_id)
+
+        self.client.force_authenticate(user=self.doctor)
+        response = self.client.post(
+            f"/api/clinic/appointments/{appointment_id}/create-next/",
+            {"timeSlotId": str(foreign_doctor_slot.id), "notes": "Follow-up"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json()["timeSlotId"],
+            ["Follow-up time slot must belong to the same doctor"],
+        )
+
     def test_review_requires_completed_appointment_and_is_limited_to_one(self):
         slot_date = timezone.now().date() + timedelta(days=2)
         _, slot = self._create_slot(self.doctor, slot_date, time(16, 0), time(16, 30))
@@ -377,7 +403,16 @@ class ClinicSystemAPITests(TestCase):
             {"diagnosis": "Edited by wrong doctor"},
             format="json",
         )
-        self.assertEqual(edit_response.status_code, 403)
+        self.assertEqual(edit_response.status_code, 404)
+
+    def test_reviews_filter_rejects_invalid_doctor_id(self):
+        response = self.client.get("/api/clinic/reviews/?doctorId=not-a-uuid")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json()["doctorId"],
+            ["doctorId must be a valid UUID"],
+        )
 
     def test_doctor_access_only_patients_who_booked_with_him(self):
         slot_date = timezone.now().date() + timedelta(days=2)
