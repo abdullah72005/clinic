@@ -10,6 +10,7 @@ from clinic_management.views import (
     DoctorScheduleViewSet,
     DoctorViewSet,
     MyMedicalHistoryView,
+    NotificationViewSet,
     PatientDiagnosisViewSet,
     PatientMedicalHistoryView,
     PatientPrescriptionViewSet,
@@ -21,6 +22,7 @@ router.register(r"doctors", DoctorViewSet, basename="doctor")
 router.register(r"doctor-schedules", DoctorScheduleViewSet, basename="doctor-schedule")
 router.register(r"appointments", AppointmentViewSet, basename="appointment")
 router.register(r"reviews", ReviewViewSet, basename="review")
+router.register(r"notifications", NotificationViewSet, basename="notification")
 router.register(r"diagnoses", PatientDiagnosisViewSet, basename="diagnosis")
 router.register(r"prescriptions", PatientPrescriptionViewSet, basename="prescription")
 router.register(r"admin/users", AdminUserViewSet, basename="admin-user")

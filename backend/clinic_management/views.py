@@ -2,7 +2,7 @@ from datetime import timedelta
 from uuid import UUID
 
 from django.db import transaction
-from django.db.models import Prefetch, Q
+from django.db.models import Count, Prefetch, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
@@ -13,6 +13,7 @@ from rest_framework.permissions import (
     IsAuthenticated,
     IsAuthenticatedOrReadOnly,
 )
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -22,6 +23,7 @@ from clinic_management.models import (
     AppointmentStatus,
     DoctorSchedule,
     MedicalRecord,
+    Notification,
     PatientDiagnosis,
     PatientPrescription,
     Review,
@@ -41,6 +43,7 @@ from clinic_management.serializers import (
     DoctorScheduleSerializer,
     FollowUpAppointmentCreateSerializer,
     MedicalHistorySerializer,
+    NotificationSerializer,
     PatientDiagnosisCreateSerializer,
     PatientDiagnosisSerializer,
     PatientDiagnosisUpdateSerializer,
@@ -103,6 +106,20 @@ class DoctorViewSet(viewsets.ReadOnlyModelViewSet):
         return queryset
 
     @action(
+        detail=False, methods=["get"], permission_classes=[AllowAny], url_path="specialties"
+    )
+    def specialties(self, request):
+        specialties = (
+            self.get_queryset()
+            .exclude(specialization__isnull=True)
+            .exclude(specialization__exact="")
+            .values("specialization")
+            .annotate(doctorsCount=Count("userId"))
+            .order_by("specialization")
+        )
+        return Response(list(specialties))
+
+    @action(
         detail=True, methods=["get"], permission_classes=[AllowAny], url_path="reviews"
     )
     def reviews(self, request, pk=None):
@@ -154,6 +171,87 @@ class DoctorViewSet(viewsets.ReadOnlyModelViewSet):
         )
         return Response(serializer.data)
 
+    @action(
+        detail=False,
+        methods=["get", "patch"],
+        permission_classes=[IsAuthenticated],
+        url_path="me",
+        parser_classes=[JSONParser, MultiPartParser, FormParser],
+    )
+    def me(self, request):
+        doctor = get_doctor_for_user(request.user)
+        if doctor is None:
+            raise PermissionDenied("Only doctors can access doctor profile")
+
+        if request.method == "GET":
+            serializer = DoctorDetailSerializer(doctor, context={"request": request})
+            return Response(serializer.data)
+
+        field_map = {
+            "first_Name": "first_name",
+            "last_Name": "last_name",
+            "first_name": "first_name",
+            "last_name": "last_name",
+            "email": "email",
+            "phoneNo": "phoneNo",
+            "specialization": "specialization",
+            "bio": "bio",
+            "location": "location",
+            "yearsOfExperience": "yearsOfExperience",
+        }
+
+        update_fields = []
+        for key, value in request.data.items():
+            if key == "pfp":
+                # handled separately via request.FILES for multipart uploads
+                continue
+
+            if key not in field_map:
+                raise ValidationError({key: ["Field cannot be updated"]})
+
+            target_field = field_map[key]
+            if target_field == "yearsOfExperience":
+                try:
+                    value = int(value)
+                except (TypeError, ValueError) as exc:
+                    raise ValidationError(
+                        {"yearsOfExperience": ["Must be an integer"]}
+                    ) from exc
+                if value < 0:
+                    raise ValidationError(
+                        {"yearsOfExperience": ["Must be greater than or equal to 0"]}
+                    )
+
+            if target_field == "email":
+                normalized_email = str(value).strip().lower()
+                if (
+                    User.objects.filter(email=normalized_email)
+                    .exclude(pk=doctor.pk)
+                    .exists()
+                ):
+                    raise ValidationError({"email": ["Email already in use"]})
+                value = normalized_email
+                doctor.username = normalized_email
+                update_fields.append("username")
+
+            setattr(doctor, target_field, value)
+            update_fields.append(target_field)
+
+        if "first_name" in update_fields or "last_name" in update_fields:
+            doctor.fullName = f"{doctor.first_name} {doctor.last_name}".strip()
+            update_fields.append("fullName")
+
+        profile_image = request.FILES.get("pfp")
+        if profile_image is not None:
+            doctor.pfp = profile_image
+            update_fields.append("pfp")
+
+        if update_fields:
+            doctor.save(update_fields=list(set(update_fields)))
+
+        serializer = DoctorDetailSerializer(doctor, context={"request": request})
+        return Response(serializer.data)
+
 
 class DoctorScheduleViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     serializer_class = DoctorScheduleSerializer
@@ -184,11 +282,28 @@ class DoctorScheduleViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         serializer = DoctorScheduleCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        schedule_date = serializer.validated_data["date"]
+        start_time = serializer.validated_data["startTime"]
+        end_time = serializer.validated_data["endTime"]
+
+        existing_schedule = DoctorSchedule.objects.filter(
+            doctorId=doctor, date=schedule_date
+        ).first()
+
+        if existing_schedule is not None:
+            schedule = ScheduleService.update_schedule_with_slots(
+                schedule=existing_schedule,
+                start_time=start_time,
+                end_time=end_time,
+            )
+            output = DoctorScheduleSerializer(schedule, context={"request": request})
+            return Response(output.data, status=status.HTTP_200_OK)
+
         schedule = ScheduleService.create_schedule_with_slots(
             doctor=doctor,
-            date=serializer.validated_data["date"],
-            start_time=serializer.validated_data["startTime"],
-            end_time=serializer.validated_data["endTime"],
+            date=schedule_date,
+            start_time=start_time,
+            end_time=end_time,
         )
 
         output = DoctorScheduleSerializer(schedule, context={"request": request})
@@ -419,6 +534,22 @@ class ReviewViewSet(
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class NotificationViewSet(
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
+):
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = DefaultPagination
+
+    def get_queryset(self):
+        queryset = Notification.objects.select_related("userId").order_by("-sentAt")
+
+        if is_admin_user(self.request.user):
+            return queryset
+
+        return queryset.filter(userId=self.request.user)
 
 
 class PatientDiagnosisViewSet(

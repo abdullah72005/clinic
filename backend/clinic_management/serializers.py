@@ -8,6 +8,7 @@ from authentication.models import Doctor, User
 from clinic_management.models import (
     Appointment,
     DoctorSchedule,
+    Notification,
     PatientDiagnosis,
     PatientPrescription,
     Review,
@@ -75,6 +76,7 @@ class DoctorListSerializer(serializers.ModelSerializer):
     last_Name = serializers.CharField(source="last_name", read_only=True)
     averageRating = serializers.SerializerMethodField()
     role = serializers.SerializerMethodField()
+    pfpUrl = serializers.SerializerMethodField()
 
     class Meta:
         model = Doctor
@@ -91,6 +93,7 @@ class DoctorListSerializer(serializers.ModelSerializer):
             "yearsOfExperience",
             "averageRating",
             "role",
+            "pfpUrl",
         ]
 
     def get_averageRating(self, obj):
@@ -101,6 +104,14 @@ class DoctorListSerializer(serializers.ModelSerializer):
 
     def get_role(self, obj):
         return resolve_user_role(obj)
+
+    def get_pfpUrl(self, obj):
+        request = self.context.get("request")
+        if not obj.pfp:
+            return None
+        if request is None:
+            return obj.pfp.url
+        return request.build_absolute_uri(obj.pfp.url)
 
 
 class DoctorDetailSerializer(DoctorListSerializer):
@@ -149,15 +160,57 @@ class DoctorRecurringScheduleCreateSerializer(serializers.Serializer):
 class AppointmentSerializer(serializers.ModelSerializer):
     doctorId = serializers.UUIDField(source="doctorId_id", read_only=True)
     patientId = serializers.UUIDField(source="patientId_id", read_only=True)
+    patientName = serializers.SerializerMethodField()
+    doctorName = serializers.SerializerMethodField()
+    doctorSpecialization = serializers.CharField(source="doctorId.specialization", read_only=True)
+    doctorPfpUrl = serializers.SerializerMethodField()
+    patientPfpUrl = serializers.SerializerMethodField()
     timeSlotId = serializers.UUIDField(source="timeSlotId_id", read_only=True)
     timeSlot = TimeSlotSerializer(source="timeSlotId", read_only=True)
+
+    def get_patientName(self, obj):
+        patient = obj.patientId
+        full_name = (
+            f"{getattr(patient, 'first_name', '')} {getattr(patient, 'last_name', '')}"
+        ).strip()
+        return full_name or getattr(patient, "fullName", "") or patient.email
+
+    def get_doctorName(self, obj):
+        doctor = obj.doctorId
+        full_name = (
+            f"{getattr(doctor, 'first_name', '')} {getattr(doctor, 'last_name', '')}"
+        ).strip()
+        return full_name or getattr(doctor, "fullName", "") or doctor.email
+
+    def get_doctorPfpUrl(self, obj):
+        request = self.context.get("request")
+        doctor = obj.doctorId
+        if not getattr(doctor, "pfp", None):
+            return None
+        if request is None:
+            return doctor.pfp.url
+        return request.build_absolute_uri(doctor.pfp.url)
+
+    def get_patientPfpUrl(self, obj):
+        request = self.context.get("request")
+        patient = obj.patientId
+        if not getattr(patient, "pfp", None):
+            return None
+        if request is None:
+            return patient.pfp.url
+        return request.build_absolute_uri(patient.pfp.url)
 
     class Meta:
         model = Appointment
         fields = [
             "id",
             "doctorId",
+            "doctorName",
+            "doctorSpecialization",
+            "doctorPfpUrl",
             "patientId",
+            "patientName",
+            "patientPfpUrl",
             "timeSlotId",
             "timeSlot",
             "status",
@@ -269,10 +322,19 @@ class MedicalHistorySerializer(serializers.Serializer):
     prescriptions = PatientPrescriptionSerializer(many=True)
 
 
+class NotificationSerializer(serializers.ModelSerializer):
+    userId = serializers.UUIDField(source="userId_id", read_only=True)
+
+    class Meta:
+        model = Notification
+        fields = ["id", "userId", "message", "type", "sentAt"]
+
+
 class UserAdminSerializer(serializers.ModelSerializer):
     first_Name = serializers.CharField(source="first_name", read_only=True)
     last_Name = serializers.CharField(source="last_name", read_only=True)
     role = serializers.SerializerMethodField()
+    pfpUrl = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -285,10 +347,19 @@ class UserAdminSerializer(serializers.ModelSerializer):
             "createdAt",
             "is_active",
             "role",
+            "pfpUrl",
         ]
 
     def get_role(self, obj):
         return resolve_user_role(obj)
+
+    def get_pfpUrl(self, obj):
+        request = self.context.get("request")
+        if not obj.pfp:
+            return None
+        if request is None:
+            return obj.pfp.url
+        return request.build_absolute_uri(obj.pfp.url)
 
 
 class DoctorAdminSerializer(DoctorListSerializer):

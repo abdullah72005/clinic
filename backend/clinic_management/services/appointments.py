@@ -220,6 +220,8 @@ class ScheduleService:
     def create_schedule_with_slots(cls, *, doctor, date, start_time, end_time):
         if start_time >= end_time:
             raise ValidationError({"startTime": ["startTime must be before endTime"]})
+        if date < timezone.localdate():
+            raise ValidationError({"date": ["Cannot create schedules in the past"]})
 
         has_overlap = DoctorSchedule.objects.filter(
             doctorId=doctor,
@@ -254,6 +256,53 @@ class ScheduleService:
             TimeSlot.objects.bulk_create(slots)
 
             return schedule
+
+    @classmethod
+    def update_schedule_with_slots(cls, *, schedule, start_time, end_time):
+        if start_time >= end_time:
+            raise ValidationError({"startTime": ["startTime must be before endTime"]})
+        if schedule.date < timezone.localdate():
+            raise ValidationError({"date": ["Cannot edit schedules in the past"]})
+
+        has_overlap = DoctorSchedule.objects.filter(
+            doctorId=schedule.doctorId,
+            date=schedule.date,
+            startTime__lt=end_time,
+            endTime__gt=start_time,
+        ).exclude(pk=schedule.pk).exists()
+        if has_overlap:
+            raise ValidationError(
+                {"date": ["Schedule overlaps with an existing schedule"]}
+            )
+
+        with transaction.atomic():
+            locked_schedule = DoctorSchedule.objects.select_for_update().get(pk=schedule.pk)
+            existing_slots = TimeSlot.objects.select_for_update().filter(scheduleId=locked_schedule)
+
+            if existing_slots.filter(status=TimeSlotStatus.RESERVED).exists():
+                raise ValidationError(
+                    {"date": ["Cannot edit a schedule that already has booked slots"]}
+                )
+
+            existing_slots.delete()
+            locked_schedule.startTime = start_time
+            locked_schedule.endTime = end_time
+            locked_schedule.save(update_fields=["startTime", "endTime"])
+
+            slot_windows = cls._generate_slot_boundaries(locked_schedule)
+            TimeSlot.objects.bulk_create(
+                [
+                    TimeSlot(
+                        scheduleId=locked_schedule,
+                        startTime=start_time_value,
+                        endTime=end_time_value,
+                        status=TimeSlotStatus.AVAILABLE,
+                    )
+                    for start_time_value, end_time_value in slot_windows
+                ]
+            )
+
+            return locked_schedule
 
     @classmethod
     def create_recurring_schedules_with_slots(
