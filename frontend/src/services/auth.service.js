@@ -96,7 +96,7 @@ const authService = {
       email: userData.email,
       password: userData.password,
       first_name: firstName || userData.name || 'User',
-      last_name: lastName || '',
+      last_name: lastName || 'Account',
       phoneNo: userData.phoneNo || '',
     };
 
