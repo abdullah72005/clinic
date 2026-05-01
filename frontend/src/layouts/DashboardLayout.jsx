@@ -134,7 +134,7 @@ const DashboardLayout = ({ role }) => {
     patient: [
       { icon: LayoutDashboard, label: 'Dashboard', path: '/patient/dashboard' },
       { icon: Calendar, label: 'My Bookings', path: '/patient/bookings' },
-      { icon: User, label: 'Profile Settings', path: '/patient/profile' },
+      { icon: User, label: 'Medical Profile', path: '/patient/profile' },
       { icon: ClipboardList, label: 'Medical History', path: '/patient/history' },
     ],
     doctor: [
@@ -158,6 +158,7 @@ const DashboardLayout = ({ role }) => {
   ).length;
   const displayName = (user?.name || '')
     .replace(/^Dr\.\s*/i, '')
+    .replace(/\s*Account\s*$/i, '')
     .trim()
     .split(' ')[0];
 

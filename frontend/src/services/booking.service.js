@@ -86,6 +86,25 @@ const bookingService = {
       diagnosis: diagnosisResponse.data,
       prescription: prescriptionResponse.data,
     };
+  },
+
+  submitReview: async (reviewData) => {
+    const response = await api.post('/clinic/reviews/', {
+      appointmentId: reviewData.appointmentId,
+      rating: reviewData.rating,
+      comment: reviewData.comment,
+    });
+    return response.data;
+  },
+
+  getMyReviews: async () => {
+    const response = await api.get('/clinic/reviews/');
+    return listData(response);
+  },
+
+  cancelAppointment: async (appointmentId) => {
+    const response = await api.post(`/clinic/appointments/${appointmentId}/cancel/`);
+    return response.data;
   }
 };
 

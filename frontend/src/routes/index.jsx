@@ -12,6 +12,7 @@ import Doctors from '../pages/Doctors';
 import DoctorProfile from '../pages/DoctorProfile';
 import PatientDashboard from '../pages/patient/Dashboard';
 import PatientBookings from '../pages/patient/Bookings';
+import PatientProfile from '../pages/patient/Profile';
 import DoctorAvailability from '../pages/doctor/Availability';
 import DoctorPatients from '../pages/doctor/Patients';
 import DoctorAppointments from '../pages/doctor/Appointments';
@@ -55,7 +56,7 @@ const AppRoutes = () => {
         } />
         <Route path="profile" element={
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div>Patient Profile Page</div>
+            <PatientProfile />
           </div>
         } />
         <Route path="history" element={

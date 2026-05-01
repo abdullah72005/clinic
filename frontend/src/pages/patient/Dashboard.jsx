@@ -140,17 +140,8 @@ const PatientDashboard = () => {
       {/* Welcome Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <p className="text-primary-600 font-bold uppercase tracking-widest text-xs mb-2">Patient Dashboard</p>
-          <h1 className="text-4xl font-black text-slate-900 leading-tight">Hello, {user?.name.split(' ')[0]}! 👋</h1>
-          <p className="text-slate-500 font-medium">You have {upcomingCount} upcoming appointments.</p>
-        </div>
-        <div className="flex items-center space-x-3">
-          <button className="px-6 py-3 bg-white text-slate-900 rounded-2xl font-bold border border-slate-200 hover:bg-slate-50 transition-all shadow-sm">
-            View Reports
-          </button>
-          <button className="px-6 py-3 bg-primary-600 text-white rounded-2xl font-bold hover:bg-primary-700 transition-all shadow-xl shadow-primary-200">
-            Book New
-          </button>
+          <h1 className="text-4xl font-black text-slate-900 leading-tight">Welcome back, {user?.name.split(' ')[0]} 👋</h1>
+          <p className="text-slate-500 font-medium">Keep track of your health journey and upcoming visits.</p>
         </div>
       </div>
 

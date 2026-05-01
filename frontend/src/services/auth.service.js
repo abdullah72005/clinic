@@ -42,12 +42,19 @@ const authService = {
     localStorage.setItem('token', payload.access_token);
     const role = await inferRole();
     let profileImage = resolveAvatar(null);
-    if (role === 'doctor') {
-      try {
+    
+    try {
+      if (role === 'doctor') {
         const meResponse = await api.get('/clinic/doctors/me/');
         profileImage = resolveAvatar(meResponse.data?.pfpUrl);
-      } catch (_) {}
+      } else if (role === 'patient') {
+        const meResponse = await api.get('/clinic/patients/me/');
+        profileImage = resolveAvatar(meResponse.data?.pfpUrl);
+      }
+    } catch (_) {
+      console.warn('Failed to fetch profile image during login');
     }
+
     const user = {
       id: payload.userId,
       userId: payload.userId,
@@ -89,7 +96,7 @@ const authService = {
       email: userData.email,
       password: userData.password,
       first_name: firstName || userData.name || 'User',
-      last_name: lastName || 'Account',
+      last_name: lastName || '',
       phoneNo: userData.phoneNo || '',
     };
 

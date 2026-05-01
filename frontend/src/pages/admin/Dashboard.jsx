@@ -275,13 +275,14 @@ const AdminDashboard = () => {
                     </div>
                     <div>
                       <p className="text-sm font-bold text-slate-900">
-                        {activity.type.charAt(0).toUpperCase() + activity.type.slice(1).replace('_', ' ')}
+                        {activity.type === 'appointment' ? 'Appointment Update' : 
+                         activity.type.charAt(0).toUpperCase() + activity.type.slice(1).replace('_', ' ')}
                       </p>
-                      <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                        {activity.message}
+                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                        {activity.message.replace(/\bYour\b/g, 'An').replace(/\byour\b/g, 'an')}
                       </p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase mt-2">
-                        {new Date(activity.sentAt).toLocaleDateString()} {new Date(activity.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-2">
+                        {new Date(activity.sentAt).toLocaleString()}
                       </p>
                     </div>
                   </div>

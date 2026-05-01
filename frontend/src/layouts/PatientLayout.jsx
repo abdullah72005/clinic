@@ -2,6 +2,7 @@ import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
 import { Search, User, LogOut, Menu, X, Calendar, Bell } from 'lucide-react';
 import { useState } from 'react';
+import { resolveAvatar } from '../utils/avatar';
 
 const PatientLayout = () => {
   const { user, logout, isAuthenticated } = useAuth();
@@ -33,6 +34,7 @@ const PatientLayout = () => {
                   <>
                     <Link to="/patient/dashboard" className="text-slate-600 hover:text-primary-600 font-medium transition-colors">My Dashboard</Link>
                     <Link to="/patient/bookings" className="text-slate-600 hover:text-primary-600 font-medium transition-colors">My Bookings</Link>
+                    <Link to="/patient/profile" className="text-slate-600 hover:text-primary-600 font-medium transition-colors">Medical Profile</Link>
                   </>
                 )}
               </div>
@@ -47,9 +49,18 @@ const PatientLayout = () => {
                   <div className="relative group">
                     <button className="flex items-center space-x-3 p-1 rounded-full hover:bg-slate-100 transition-colors">
                       <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-200">
-                        <img src={user.image} alt={user.name} className="w-full h-full object-cover" />
+                        <img 
+                          src={user.image} 
+                          alt={user.name} 
+                          className="w-full h-full object-cover" 
+                          onError={(e) => {
+                            e.currentTarget.src = resolveAvatar(null);
+                          }}
+                        />
                       </div>
-                      <span className="text-sm font-medium text-slate-700">{user.name}</span>
+                      <span className="text-sm font-medium text-slate-700">
+                        {(user.name || '').replace(/\s*Account\s*$/i, '')}
+                      </span>
                     </button>
                     <div className="absolute right-0 w-48 mt-2 py-2 bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                       <div className="px-4 py-2 border-b border-slate-50 mb-2">
@@ -58,6 +69,7 @@ const PatientLayout = () => {
                       </div>
                       <Link to="/patient/dashboard" className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 font-medium">My Dashboard</Link>
                       <Link to="/patient/bookings" className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 font-medium">My Bookings</Link>
+                      <Link to="/patient/profile" className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 font-medium">Medical Profile</Link>
                       <hr className="my-2 border-slate-100" />
                       <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2">
                         <LogOut className="w-4 h-4" />
@@ -91,6 +103,7 @@ const PatientLayout = () => {
               <>
                 <Link to="/patient/dashboard" className="block px-3 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 rounded-lg">My Dashboard</Link>
                 <Link to="/patient/bookings" className="block px-3 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 rounded-lg">My Bookings</Link>
+                <Link to="/patient/profile" className="block px-3 py-2 text-base font-medium text-slate-700 hover:bg-slate-50 rounded-lg">Medical Profile</Link>
               </>
             )}
             {isAuthenticated ? (

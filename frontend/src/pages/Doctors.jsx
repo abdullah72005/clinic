@@ -16,8 +16,10 @@ const DoctorCardLarge = ({ doctor }) => (
     <div className="flex-grow space-y-4">
       <div className="flex justify-between items-start">
         <div>
-          <div className="flex items-center space-x-2 mb-1">
-             <span className="px-2 py-0.5 bg-primary-50 text-primary-600 text-[10px] font-bold uppercase tracking-wider rounded-md">Available Today</span>
+          <div className="flex flex-col items-start space-y-2 mb-1">
+             {doctor.availableToday && (
+               <span className="px-2 py-0.5 bg-primary-50 text-primary-600 text-[10px] font-bold uppercase tracking-wider rounded-md">Available Today</span>
+             )}
              <h3 className="text-xl font-bold text-slate-900">{doctor.name}</h3>
           </div>
           <p className="text-primary-600 font-bold">{doctor.specialty}</p>
