@@ -7,6 +7,7 @@ This folder contains all project documentation organized by area.
 - `api/`
   - `authentication.md`: Auth API contract (register/login/refresh/logout).
   - `clinic-management.md`: Clinic module API contract.
+- `security.md`: Security measures implemented (password hashing, JWT auth, RBAC, permissions).
 - `development/`
   - `onboarding.md`: Local development setup and daily workflow.
 - `docker/`
@@ -19,5 +20,6 @@ This folder contains all project documentation organized by area.
 
 1. `development/onboarding.md`
 2. `docker/exec-commands.md`
-3. `api/authentication.md`
-4. `api/clinic-management.md`
+3. `security.md`
+4. `api/authentication.md`
+5. `api/clinic-management.md`

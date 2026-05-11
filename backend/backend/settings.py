@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 from datetime import timedelta
 from django.core.exceptions import ImproperlyConfigured
+from corsheaders.defaults import default_headers
 
 
 def env_list(name, default=""):
@@ -110,6 +111,10 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@docbook.local")
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
 )
+
+# Ensure custom auth CSRF header is allowed in CORS preflight requests.
+# (Used by cookie-based refresh/logout flows via X-Auth-CSRF)
+CORS_ALLOW_HEADERS = list(default_headers) + ["x-auth-csrf"]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
