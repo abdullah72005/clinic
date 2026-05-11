@@ -86,6 +86,9 @@ Paginated endpoints return:
 
 | Endpoint | Method | Auth |
 | --- | --- | --- |
+| `/api/clinic/admin/health/` | GET | Public |
+| `/api/clinic/appointments/health/` | GET | Public |
+| `/api/clinic/doctors/health/` | GET | Public |
 | `/api/clinic/doctors/` | GET | Public |
 | `/api/clinic/doctors/{doctorId}/` | GET | Public |
 | `/api/clinic/doctors/{doctorId}/reviews/` | GET | Public |
@@ -116,6 +119,43 @@ Paginated endpoints return:
 | `/api/clinic/admin/appointments/{id}/` | GET, PATCH, DELETE | Admin |
 | `/api/clinic/admin/reviews/` | GET | Admin |
 | `/api/clinic/admin/reviews/{id}/` | GET, DELETE | Admin |
+
+---
+
+## 0) Health Checks
+
+### GET `/api/clinic/admin/health/`
+
+Public admin-area health check.
+
+```json
+{
+  "status": "ok",
+  "service": "clinic_management.admin"
+}
+```
+
+### GET `/api/clinic/appointments/health/`
+
+Public appointments health check.
+
+```json
+{
+  "status": "ok",
+  "service": "clinic_management.appointments"
+}
+```
+
+### GET `/api/clinic/doctors/health/`
+
+Public doctors health check.
+
+```json
+{
+  "status": "ok",
+  "service": "clinic_management.doctors"
+}
+```
 
 ---
 

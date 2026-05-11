@@ -118,6 +118,12 @@ def _validate_cookie_csrf(request):
 
     return secrets.compare_digest(csrf_cookie_value, csrf_header_value)
 
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def health(request):
+    return Response({"status": "ok", "service": "authentication"}, status=status.HTTP_200_OK)
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register_patient(request):
