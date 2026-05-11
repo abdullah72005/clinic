@@ -156,24 +156,6 @@ const DoctorProfile = () => {
                 e.currentTarget.src = resolveAvatar(null);
               }}
             />
-            <div className="flex items-center gap-3">
-              <input
-                id="doctor-profile-image"
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-              <label
-                htmlFor="doctor-profile-image"
-                className="inline-flex items-center px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-bold cursor-pointer hover:bg-primary-700 transition-colors"
-              >
-                Choose Image
-              </label>
-              <span className="text-sm text-slate-500">
-                {selectedImageFile ? selectedImageFile.name : 'No file chosen'}
-              </span>
-            </div>
           </div>
         </div>
 

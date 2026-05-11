@@ -78,8 +78,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-0i!*lkeq_%r51lb_1eco#=rah0lg_nnj3#7zo!7k^=@tlh5!qx"
 
+
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env_bool("DJANGO_DEBUG", True)
 
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,backend")
 
@@ -98,19 +99,23 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "authentication",
     "clinic_management.apps.ClinicManagementConfig",
+
 ]
 AUTH_USER_MODEL = "authentication.User"
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
+CORS_ALLOWED_ORIGINS = env_list(
+    "DJANGO_CORS_ALLOWED_ORIGINS", ""
+)
 CORS_ALLOW_CREDENTIALS = env_bool("DJANGO_CORS_ALLOW_CREDENTIALS", False)
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@docbook.local")
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
 )
+
+# Ensure custom auth CSRF header is allowed in CORS preflight requests.
+# (Used by cookie-based refresh/logout flows via X-Auth-CSRF)
+CORS_ALLOW_HEADERS = list(default_headers) + ["x-auth-csrf"]
 
 # Ensure custom auth CSRF header is allowed in CORS preflight requests.
 # (Used by cookie-based refresh/logout flows via X-Auth-CSRF)

@@ -1,29 +1,9 @@
 services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: clinicdb
-      POSTGRES_USER: clinicuser
-      POSTGRES_PASSWORD: clinicpass
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U clinicuser -d clinicdb"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   backend:
     build:
       context: ./backend
     env_file:
       - ./backend/.env
-    environment:
-      POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
-    depends_on:
-      db:
-        condition: service_healthy
     command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     ports:
       - "8000:8000"
@@ -33,9 +13,11 @@ services:
   frontend:
     build:
       context: ./frontend
+    env_file:
+      - ./frontend/.env
     environment:
       CHOKIDAR_USEPOLLING: "true"
-      VITE_API_URL: "http://localhost:8000/api"
+      VITE_API_URL: "http://13.48.43.38:8000/api"
     depends_on:
       - backend
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
