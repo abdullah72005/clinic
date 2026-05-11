@@ -104,7 +104,7 @@ INSTALLED_APPS = [
 AUTH_USER_MODEL = "authentication.User"
 
 CORS_ALLOWED_ORIGINS = env_list(
-    "DJANGO_CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+    "DJANGO_CORS_ALLOWED_ORIGINS", ""
 )
 CORS_ALLOW_CREDENTIALS = env_bool("DJANGO_CORS_ALLOW_CREDENTIALS", False)
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
