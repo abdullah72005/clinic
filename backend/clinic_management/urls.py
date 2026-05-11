@@ -15,6 +15,9 @@ from clinic_management.views import (
     PatientMedicalHistoryView,
     PatientPrescriptionViewSet,
     ReviewViewSet,
+    admin_health,
+    appointments_health,
+    doctors_health,
 )
 
 router = DefaultRouter()
@@ -33,6 +36,12 @@ router.register(
 router.register(r"admin/reviews", AdminReviewViewSet, basename="admin-review")
 
 urlpatterns = [
+    path("admin/health", admin_health),
+    path("admin/health/", admin_health, name="admin-health"),
+    path("appointments/health", appointments_health),
+    path("appointments/health/", appointments_health, name="appointments-health"),
+    path("doctors/health", doctors_health),
+    path("doctors/health/", doctors_health, name="doctors-health"),
     path("", include(router.urls)),
     path(
         "medical-history/me/", MyMedicalHistoryView.as_view(), name="my-medical-history"

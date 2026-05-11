@@ -3,6 +3,8 @@ from django.urls import path
 from authentication import views
 
 urlpatterns = [
+    path("health", views.health),
+    path("health/", views.health, name="health"),
     path("register-patient", views.register_patient),
     path("register-patient/", views.register_patient, name="register-patient"),
     path("register-doctor", views.register_doctor),

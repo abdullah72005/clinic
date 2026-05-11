@@ -8,6 +8,7 @@ Last updated: 2026-04-24
 
 | Endpoint | Method | Status |
 | --- | --- | --- |
+| /api/auth/health and /api/auth/health/ | GET | Implemented |
 | /api/auth/register-patient and /api/auth/register-patient/ | POST | Implemented |
 | /api/auth/register-doctor and /api/auth/register-doctor/ | POST | Implemented |
 | /api/auth/login and /api/auth/login/ | POST | Implemented |
@@ -34,6 +35,22 @@ Notes:
 - errors is returned on failures.
 
 ## Implemented Endpoints
+
+## 0 Health Check
+
+- Method: GET
+- URL (canonical): /api/auth/health/
+- Also accepted: /api/auth/health
+- Auth required: No
+
+Success response (200 OK):
+
+```json
+{
+  "status": "ok",
+  "service": "authentication"
+}
+```
 
 ## 1) Register Patient
 

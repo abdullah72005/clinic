@@ -738,3 +738,30 @@ class ClinicSystemAPITests(TestCase):
             response.json()["detail"],
             ["Provide at least one updatable field"],
         )
+
+
+class ClinicHealthEndpointTests(TestCase):
+    def test_admin_health_endpoint_returns_ok(self):
+        response = self.client.get("/api/clinic/admin/health/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(), {"status": "ok", "service": "clinic_management.admin"}
+        )
+
+    def test_appointments_health_endpoint_returns_ok(self):
+        response = self.client.get("/api/clinic/appointments/health/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"status": "ok", "service": "clinic_management.appointments"},
+        )
+
+    def test_doctors_health_endpoint_returns_ok(self):
+        response = self.client.get("/api/clinic/doctors/health/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(), {"status": "ok", "service": "clinic_management.doctors"}
+        )

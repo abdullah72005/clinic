@@ -65,6 +65,24 @@ from clinic_management.services.appointments import (
 )
 
 
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def admin_health(request):
+    return Response({"status": "ok", "service": "clinic_management.admin"}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def appointments_health(request):
+    return Response({"status": "ok", "service": "clinic_management.appointments"}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def doctors_health(request):
+    return Response({"status": "ok", "service": "clinic_management.doctors"}, status=status.HTTP_200_OK)
+
+
 class DoctorViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Doctor.objects.all().order_by("createdAt")
     serializer_class = DoctorListSerializer
