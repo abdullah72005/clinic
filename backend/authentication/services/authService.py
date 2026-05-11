@@ -3,18 +3,24 @@ from typing import Dict, Any
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import Group
+from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils.encoding import force_bytes
 from rest_framework import serializers
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from authentication.models import Doctor, Patient, User
 from authentication.serializers import (
+    ForgotPasswordSerializer,
     LoginSerializer,
     LogoutSerializer,
     RefreshTokenSerializer,
     RegisterDoctorSerializer,
     RegisterPatientSerializer,
+    ResetPasswordSerializer,
 )
 
 UserModel = get_user_model()
@@ -51,6 +57,14 @@ class AuthService:
             "status": "error",
             "message": "Invalid or expired refresh token.",
             "errors": {"refresh_token": ["auth.refreshToken.invalid"]},
+        }
+
+    @staticmethod
+    def _invalid_password_reset_token_response():
+        return {
+            "status": "error",
+            "message": "Invalid or expired password reset link.",
+            "errors": {"token": ["auth.passwordReset.invalid"]},
         }
 
     @staticmethod
@@ -215,6 +229,69 @@ class AuthService:
                     "refresh_token": str(refresh_token),
                     "access_token_expires_in": cls._access_token_expires_in_seconds(),
                 },
+            }
+        except serializers.ValidationError as e:
+            return cls._validation_error_response(e.detail)
+        except Exception:
+            return cls._unexpected_error_response()
+
+    @classmethod
+    def forgot_password(cls, request_data: Dict[str, Any], request=None) -> Dict[str, Any]:
+        try:
+            serializer = ForgotPasswordSerializer(data=request_data)
+            if not serializer.is_valid():
+                raise serializers.ValidationError(serializer.errors)
+
+            email = serializer.validated_data["email"]
+            user = UserModel.objects.filter(email=email, is_active=True).first()
+            data = {}
+
+            if user:
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                token = default_token_generator.make_token(user)
+                reset_path = f"/reset-password/{uid}/{token}"
+                frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip("/")
+                reset_url = f"{frontend_url}{reset_path}"
+
+                data = {"reset_url": reset_url, "reset_path": reset_path}
+
+            return {
+                "status": "success",
+                "message": "Continue to reset your password.",
+                "data": data,
+            }
+        except serializers.ValidationError as e:
+            return cls._validation_error_response(e.detail)
+        except Exception:
+            return cls._unexpected_error_response()
+
+    @classmethod
+    def reset_password(cls, request_data: Dict[str, Any], request=None) -> Dict[str, Any]:
+        try:
+            serializer = ResetPasswordSerializer(data=request_data)
+            if not serializer.is_valid():
+                raise serializers.ValidationError(serializer.errors)
+
+            validated_data = serializer.validated_data
+
+            try:
+                user_id = force_str(urlsafe_base64_decode(validated_data["uid"]))
+                user = UserModel.objects.filter(pk=user_id, is_active=True).first()
+            except Exception:
+                user = None
+
+            if not user or not default_token_generator.check_token(
+                user, validated_data["token"]
+            ):
+                return cls._invalid_password_reset_token_response()
+
+            user.set_password(validated_data["password"])
+            user.save(update_fields=["password"])
+
+            return {
+                "status": "success",
+                "message": "Password reset successfully.",
+                "data": {"password_reset": True},
             }
         except serializers.ValidationError as e:
             return cls._validation_error_response(e.detail)

@@ -1,4 +1,9 @@
 from django.test import TestCase
+from django.contrib.auth import authenticate
+from django.contrib.auth.tokens import default_token_generator
+from django.test import override_settings
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 from unittest.mock import patch
 
 from authentication.models import Doctor, Patient, User
@@ -475,6 +480,103 @@ class AuthTokenFlowTests(TestCase):
             response.json()["errors"],
             {"refresh_token": ["auth.refreshToken.required"]},
         )
+
+
+class PasswordResetAPITests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="resetuser@example.com",
+            email="resetuser@example.com",
+            password="OldPass123",
+            first_name="Reset",
+            last_name="User",
+            fullName="Reset User",
+        )
+
+    def _reset_credentials(self):
+        return {
+            "uid": urlsafe_base64_encode(force_bytes(self.user.pk)),
+            "token": default_token_generator.make_token(self.user),
+        }
+
+    def test_forgot_password_existing_email_returns_success_and_reset_path(self):
+        response = self.client.post(
+            "/api/auth/forgot-password/",
+            data={"email": "resetuser@example.com"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "success")
+        self.assertIn("/reset-password/", response.json()["data"]["reset_path"])
+
+    def test_forgot_password_unknown_email_does_not_reveal_account(self):
+        response = self.client.post(
+            "/api/auth/forgot-password/",
+            data={"email": "missing@example.com"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "success")
+        self.assertEqual(response.json()["data"], {})
+
+    def test_forgot_password_without_trailing_slash_success(self):
+        response = self.client.post(
+            "/api/auth/forgot-password",
+            data={"email": "resetuser@example.com"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "success")
+
+    def test_reset_password_success_updates_password(self):
+        credentials = self._reset_credentials()
+
+        response = self.client.post(
+            "/api/auth/reset-password/",
+            data={**credentials, "password": "NewStrongPass123"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "success")
+        self.assertIsNone(
+            authenticate(username="resetuser@example.com", password="OldPass123")
+        )
+        self.assertIsNotNone(
+            authenticate(username="resetuser@example.com", password="NewStrongPass123")
+        )
+
+    def test_reset_password_rejects_invalid_token(self):
+        credentials = self._reset_credentials()
+
+        response = self.client.post(
+            "/api/auth/reset-password/",
+            data={**credentials, "token": "invalid-token", "password": "NewStrongPass123"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["errors"], {"token": ["auth.passwordReset.invalid"]})
+
+    def test_reset_password_rejects_weak_password(self):
+        credentials = self._reset_credentials()
+
+        response = self.client.post(
+            "/api/auth/reset-password/",
+            data={**credentials, "password": "weak"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("password", response.json()["errors"])
+
+    def test_reset_password_without_trailing_slash_success(self):
+        credentials = self._reset_credentials()
+
+        response = self.client.post(
+            "/api/auth/reset-password",
+            data={**credentials, "password": "AnotherPass123"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "success")
 
 
 class AuthValidationDesignPatternTests(TestCase):

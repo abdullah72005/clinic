@@ -1,7 +1,7 @@
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime, timezone as dt_timezone, date as dt_date
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from django.db.models import Avg
+from django.db.models import Avg, Exists, OuterRef
 from rest_framework import serializers
 
 from authentication.models import Doctor, User
@@ -13,6 +13,7 @@ from clinic_management.models import (
     PatientPrescription,
     Review,
     TimeSlot,
+    TimeSlotStatus,
 )
 
 
@@ -77,6 +78,7 @@ class DoctorListSerializer(serializers.ModelSerializer):
     averageRating = serializers.SerializerMethodField()
     role = serializers.SerializerMethodField()
     pfpUrl = serializers.SerializerMethodField()
+    availableToday = serializers.SerializerMethodField()
 
     class Meta:
         model = Doctor
@@ -94,7 +96,16 @@ class DoctorListSerializer(serializers.ModelSerializer):
             "averageRating",
             "role",
             "pfpUrl",
+            "availableToday",
         ]
+
+    def get_availableToday(self, obj):
+        today = dt_date.today()
+        return TimeSlot.objects.filter(
+            scheduleId__doctorId=obj,
+            scheduleId__date=today,
+            status=TimeSlotStatus.AVAILABLE
+        ).exists()
 
     def get_averageRating(self, obj):
         avg = obj.reviews.aggregate(avg=Avg("rating"))["avg"]
@@ -173,7 +184,9 @@ class AppointmentSerializer(serializers.ModelSerializer):
         full_name = (
             f"{getattr(patient, 'first_name', '')} {getattr(patient, 'last_name', '')}"
         ).strip()
-        return full_name or getattr(patient, "fullName", "") or patient.email
+        name = full_name or getattr(patient, "fullName", "") or patient.email
+        import re
+        return re.sub(r"\s*Account\s*$", "", name, flags=re.IGNORECASE)
 
     def get_doctorName(self, obj):
         doctor = obj.doctorId
@@ -232,6 +245,7 @@ class FollowUpAppointmentCreateSerializer(serializers.Serializer):
 class ReviewSerializer(serializers.ModelSerializer):
     doctorId = serializers.UUIDField(source="doctorId_id", read_only=True)
     patientId = serializers.UUIDField(source="patientId_id", read_only=True)
+    patientName = serializers.SerializerMethodField()
     appointmentId = serializers.UUIDField(source="appointmentId_id", read_only=True)
 
     class Meta:
@@ -240,11 +254,21 @@ class ReviewSerializer(serializers.ModelSerializer):
             "id",
             "doctorId",
             "patientId",
+            "patientName",
             "appointmentId",
             "rating",
             "comment",
             "createdAt",
         ]
+
+    def get_patientName(self, obj):
+        patient = obj.patientId
+        full_name = (
+            f"{getattr(patient, 'first_name', '')} {getattr(patient, 'last_name', '')}"
+        ).strip()
+        name = full_name or getattr(patient, "fullName", "") or patient.email
+        import re
+        return re.sub(r"\s*Account\s*$", "", name, flags=re.IGNORECASE)
 
 
 class ReviewCreateSerializer(serializers.Serializer):

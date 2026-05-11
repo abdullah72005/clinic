@@ -22,6 +22,9 @@ def _resolve_response_status(service_response, success_status):
     if errors.get("refresh_token") == ["auth.refreshToken.invalid"]:
         return status.HTTP_401_UNAUTHORIZED
 
+    if errors.get("token") == ["auth.passwordReset.invalid"]:
+        return status.HTTP_400_BAD_REQUEST
+
     if errors.get("csrf") == ["auth.csrf.invalid"]:
         return status.HTTP_403_FORBIDDEN
 
@@ -143,6 +146,22 @@ def login(request):
         _set_csrf_cookie(response)
 
     return response
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def forgot_password(request):
+    service_response = AuthService.forgot_password(request.data, request=request)
+    response_status = _resolve_response_status(service_response, status.HTTP_200_OK)
+    return Response(service_response, status=response_status)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def reset_password(request):
+    service_response = AuthService.reset_password(request.data, request=request)
+    response_status = _resolve_response_status(service_response, status.HTTP_200_OK)
+    return Response(service_response, status=response_status)
 
 
 @api_view(['POST'])

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, FileText, Activity, Pill, Calendar } from 'lucide-react';
 import doctorService from '../../services/doctor.service';
 
 const DoctorPatients = () => {
@@ -79,15 +79,67 @@ const DoctorPatients = () => {
                 </div>
 
                 {open && (
-                  <div className="mt-4 p-3 rounded-lg bg-slate-50 border border-slate-100 text-sm text-slate-700">
+                  <div className="mt-4 space-y-4">
                     {!history ? (
-                      <p>Loading history...</p>
+                      <div className="p-3 rounded-lg bg-slate-50 border border-slate-100 text-sm text-slate-700 animate-pulse">
+                        Loading history...
+                      </div>
                     ) : (
-                      <>
-                        <p>Diagnoses: {history.diagnoses?.length || 0}</p>
-                        <p>Prescriptions: {history.prescriptions?.length || 0}</p>
-                        <p>Appointments: {history.appointments?.length || 0}</p>
-                      </>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {history.appointments?.filter(app => app.status === 'completed').map((app) => {
+                          const diagnosis = history.diagnoses?.find(d => d.appointmentId === app.id);
+                          const prescription = history.prescriptions?.find(p => p.appointmentId === app.id);
+                          
+                          if (!diagnosis && !prescription) return null;
+
+                          return (
+                            <div key={app.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                                <div className="flex items-center text-xs font-bold text-slate-400">
+                                  <Calendar className="w-3 h-3 mr-1" />
+                                  {app.date}
+                                </div>
+                                <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-black uppercase rounded-full">
+                                  Completed
+                                </span>
+                              </div>
+
+                              {diagnosis && (
+                                <div className="space-y-1">
+                                  <div className="flex items-center text-purple-600 gap-1.5">
+                                    <Activity className="w-3.5 h-3.5" />
+                                    <span className="text-[10px] font-black uppercase tracking-wider">Diagnosis</span>
+                                  </div>
+                                  <p className="text-sm text-slate-700 font-medium leading-relaxed bg-white p-2 rounded-xl border border-purple-50">
+                                    {diagnosis.diagnosis}
+                                  </p>
+                                </div>
+                              )}
+
+                              {prescription && (
+                                <div className="space-y-1">
+                                  <div className="flex items-center text-blue-600 gap-1.5">
+                                    <Pill className="w-3.5 h-3.5" />
+                                    <span className="text-[10px] font-black uppercase tracking-wider">Prescription</span>
+                                  </div>
+                                  <div className="bg-white p-2 rounded-xl border border-blue-50">
+                                    <p className="text-sm text-slate-900 font-black">{prescription.prescription}</p>
+                                    <div className="flex items-center space-x-3 mt-1 text-[10px] font-bold text-slate-400">
+                                      <span>Dose: {prescription.dose}</span>
+                                      <span>Duration: {prescription.duration}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {history.appointments?.filter(app => app.status === 'completed').length === 0 && (
+                          <div className="col-span-full py-4 text-center text-slate-400 font-medium italic">
+                            No medical records found for this patient.
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}

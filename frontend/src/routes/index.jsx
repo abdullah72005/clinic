@@ -8,10 +8,13 @@ import ProtectedRoute from './ProtectedRoute';
 import Home from '../pages/Home';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
+import ForgotPassword from '../pages/ForgotPassword';
+import ResetPassword from '../pages/ResetPassword';
 import Doctors from '../pages/Doctors';
 import DoctorProfile from '../pages/DoctorProfile';
 import PatientDashboard from '../pages/patient/Dashboard';
 import PatientBookings from '../pages/patient/Bookings';
+import PatientProfile from '../pages/patient/Profile';
 import DoctorAvailability from '../pages/doctor/Availability';
 import DoctorPatients from '../pages/doctor/Patients';
 import DoctorAppointments from '../pages/doctor/Appointments';
@@ -35,6 +38,8 @@ const AppRoutes = () => {
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
       </Route>
 
       {/* Patient Protected Routes (Using PatientLayout with Top Nav) */}
@@ -55,7 +60,7 @@ const AppRoutes = () => {
         } />
         <Route path="profile" element={
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div>Patient Profile Page</div>
+            <PatientProfile />
           </div>
         } />
         <Route path="history" element={

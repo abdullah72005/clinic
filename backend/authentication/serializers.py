@@ -105,6 +105,16 @@ class LoginSerializer(EmailValidationMixin, serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
 
+class ForgotPasswordSerializer(EmailValidationMixin, serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class ResetPasswordSerializer(PasswordValidationMixin, serializers.Serializer):
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+
+
 class RefreshTokenSerializer(serializers.Serializer):
     refresh_token = serializers.CharField(required=False, allow_blank=False)
 

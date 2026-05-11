@@ -17,7 +17,10 @@ const SpecialtyCard = ({ title, icon: Icon, color, doctorsCount, to }) => (
 );
 
 const DoctorCard = ({ doctor }) => (
-  <div className="group bg-white rounded-3xl border border-slate-100 p-5 hover:shadow-2xl hover:shadow-slate-200 transition-all duration-300">
+  <Link
+    to={`/doctors/${doctor.id}`}
+    className="group block bg-white rounded-3xl border border-slate-100 p-5 hover:shadow-2xl hover:shadow-slate-200 transition-all duration-300"
+  >
     <div className="relative mb-4">
       <div className="w-full h-48 rounded-2xl overflow-hidden bg-slate-100">
         <img src={doctor.image} alt={doctor.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
@@ -35,25 +38,20 @@ const DoctorCard = ({ doctor }) => (
         <span>New York, USA</span>
       </div>
     </div>
-    <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between">
-      <div>
-        <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Starting from</p>
-        <p className="text-lg font-bold text-slate-900">${doctor.price}</p>
-      </div>
-      <Link 
-        to={`/doctors/${doctor.id}`}
-        className="px-4 py-2 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-primary-600 transition-colors"
-      >
+    <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-end">
+      <span className="px-4 py-2 bg-slate-900 text-white text-sm font-bold rounded-xl group-hover:bg-primary-600 transition-colors">
         Book Now
-      </Link>
+      </span>
     </div>
-  </div>
+  </Link>
 );
 
 const Home = () => {
   const [doctors, setDoctors] = useState([]);
   const [specialties, setSpecialties] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [heroSearch, setHeroSearch] = useState('');
+  const [heroLocation, setHeroLocation] = useState('');
   const specialtyIcons = [Phone, Search, User, Clock, Shield, Star];
   const specialtyColors = [
     'bg-red-50 text-red-600',
@@ -107,6 +105,8 @@ const Home = () => {
                 <Search className="w-5 h-5 text-slate-400 mr-3" />
                 <input 
                   type="text" 
+                  value={heroSearch}
+                  onChange={(e) => setHeroSearch(e.target.value)}
                   placeholder="Doctor, specialty..." 
                   className="w-full py-4 bg-transparent border-none focus:ring-0 text-slate-900 font-medium placeholder:text-slate-400"
                 />
@@ -116,12 +116,17 @@ const Home = () => {
                 <MapPin className="w-5 h-5 text-slate-400 mr-3" />
                 <input 
                   type="text" 
+                  value={heroLocation}
+                  onChange={(e) => setHeroLocation(e.target.value)}
                   placeholder="Location" 
                   className="w-full py-4 bg-transparent border-none focus:ring-0 text-slate-900 font-medium placeholder:text-slate-400"
                 />
               </div>
               <Link 
-                to="/doctors"
+                to={`/doctors?${new URLSearchParams({
+                  ...(heroSearch.trim() ? { search: heroSearch.trim() } : {}),
+                  ...(heroLocation.trim() ? { location: heroLocation.trim() } : {}),
+                }).toString()}`}
                 className="bg-primary-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 text-center"
               >
                 Search

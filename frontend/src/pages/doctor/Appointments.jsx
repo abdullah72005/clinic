@@ -297,14 +297,6 @@ const DoctorAppointments = () => {
                         <CheckCircle className="w-4 h-4" />
                         Complete
                       </button>
-                      <button
-                        onClick={() => handleCancel(app.id)}
-                        disabled={actionLoadingId === app.id}
-                        className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700 disabled:opacity-60"
-                      >
-                        <XCircle className="w-4 h-4" />
-                        Cancel
-                      </button>
                     </>
                   )}
                   {app.status === 'completed' && (

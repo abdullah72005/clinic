@@ -26,10 +26,11 @@ const getAllPaginatedResults = async (url) => {
 
 const toDoctorCard = (doctor) => {
   const fullName =
-    `${doctor.first_Name || ''} ${doctor.last_Name || ''}`.trim() ||
-    doctor.fullName ||
-    doctor.email ||
-    'Unknown Doctor';
+    (`${doctor.first_Name || ''} ${doctor.last_Name || ''}`.trim() ||
+      doctor.fullName ||
+      doctor.email ||
+      'Unknown Doctor'
+    ).replace(/\s*Account\s*$/i, '');
 
   return {
     id: doctor.userId,
@@ -44,7 +45,8 @@ const toDoctorCard = (doctor) => {
     location: doctor.location || 'N/A',
     price: 0,
     image: resolveAvatar(doctor.pfpUrl),
-    availability: [],
+    availability: doctor.availability || [],
+    availableToday: doctor.availableToday ?? false,
   };
 };
 
@@ -56,6 +58,9 @@ const doctorService = {
     }
     if (filters.specialty) {
       params.specialization = filters.specialty;
+    }
+    if (filters.location) {
+      params.location = filters.location;
     }
 
     const response = await api.get('/clinic/doctors/', { params });
@@ -91,8 +96,13 @@ const doctorService = {
     return doctor;
   },
 
-  getDoctorReviews: async (id) => {
-    const response = await api.get(`/clinic/doctors/${id}/reviews/`);
+  getDoctorReviews: async (doctorId) => {
+    const response = await api.get(`/clinic/reviews/?doctorId=${doctorId}`);
+    return listData(response);
+  },
+
+  getMyReviews: async () => {
+    const response = await api.get('/clinic/reviews/me/');
     return listData(response);
   },
 
@@ -115,8 +125,7 @@ const doctorService = {
   },
 
   getDoctorSchedules: async () => {
-    const response = await api.get('/clinic/doctor-schedules/');
-    return listData(response);
+    return getAllPaginatedResults('/clinic/doctor-schedules/');
   },
 
   createSchedule: async (payload) => {

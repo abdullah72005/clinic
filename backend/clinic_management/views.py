@@ -93,6 +93,7 @@ class DoctorViewSet(viewsets.ReadOnlyModelViewSet):
                 Q(first_name__icontains=name)
                 | Q(last_name__icontains=name)
                 | Q(fullName__icontains=name)
+                | Q(specialization__icontains=name)
             )
         if years:
             try:
@@ -505,6 +506,21 @@ class ReviewViewSet(
             queryset = queryset.filter(doctorId_id=doctor_uuid)
 
         return queryset
+
+    @action(detail=False, methods=["get"], url_path="me")
+    def me(self, request):
+        doctor = get_doctor_for_user(request.user)
+        if doctor is None:
+            raise PermissionDenied("Only doctors can view their reviews")
+
+        queryset = self.get_queryset().filter(doctorId=doctor)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
         patient = get_patient_for_user(request.user)

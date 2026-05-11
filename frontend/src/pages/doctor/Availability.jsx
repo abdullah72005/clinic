@@ -159,7 +159,7 @@ const DoctorAvailability = () => {
           No schedules yet. Create your first schedule above.
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 pb-12">
           {schedules.map((schedule) => (
             <div
               key={schedule.id}

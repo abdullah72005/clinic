@@ -134,7 +134,7 @@ const DashboardLayout = ({ role }) => {
     patient: [
       { icon: LayoutDashboard, label: 'Dashboard', path: '/patient/dashboard' },
       { icon: Calendar, label: 'My Bookings', path: '/patient/bookings' },
-      { icon: User, label: 'Profile Settings', path: '/patient/profile' },
+      { icon: User, label: 'Medical Profile', path: '/patient/profile' },
       { icon: ClipboardList, label: 'Medical History', path: '/patient/history' },
     ],
     doctor: [
@@ -158,11 +158,18 @@ const DashboardLayout = ({ role }) => {
   ).length;
   const displayName = (user?.name || '')
     .replace(/^Dr\.\s*/i, '')
+    .replace(/\s*Account\s*$/i, '')
     .trim()
     .split(' ')[0];
+  const profilePathByRole = {
+    patient: '/patient/profile',
+    doctor: '/doctor/profile',
+    admin: '/admin/dashboard',
+  };
+  const profilePath = profilePathByRole[role] || '/';
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-dvh bg-slate-50 flex">
       {/* Sidebar - Desktop */}
       <aside className={`
         fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
@@ -276,7 +283,11 @@ const DashboardLayout = ({ role }) => {
               <span className="text-sm font-medium text-slate-700 hidden sm:block">
                 Welcome, {displayName || 'Doctor'}!
               </span>
-              <div className="w-8 h-8 rounded-lg overflow-hidden ring-2 ring-primary-50">
+              <Link
+                to={profilePath}
+                className="w-8 h-8 rounded-lg overflow-hidden ring-2 ring-primary-50 hover:ring-primary-300 transition"
+                aria-label="Open profile"
+              >
                 <img
                   src={resolveAvatar(user?.image)}
                   alt={user?.name}
@@ -285,14 +296,14 @@ const DashboardLayout = ({ role }) => {
                     e.currentTarget.src = resolveAvatar(null);
                   }}
                 />
-              </div>
+              </Link>
             </div>
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="p-4 sm:p-8 overflow-y-auto">
-          <div className="max-w-6xl mx-auto">
+        <main className="flex-1 p-4 sm:p-8">
+          <div className="max-w-6xl mx-auto pb-12">
              <Outlet />
           </div>
         </main>

@@ -10,14 +10,32 @@ const inferRole = async () => {
   try {
     await api.get('/clinic/admin/users/?page_size=1');
     return 'admin';
-  } catch (_) {}
+  } catch {
+    // Continue probing narrower roles.
+  }
 
   try {
     await api.get('/clinic/appointments/today/?page_size=1');
     return 'doctor';
-  } catch (_) {}
+  } catch {
+    // Default to patient if privileged endpoints are not available.
+  }
 
   return 'patient';
+};
+
+const getAuthErrorMessage = (err, fallback) => {
+  const data = err?.response?.data;
+  const errors = data?.errors;
+
+  if (errors && typeof errors === 'object') {
+    const firstKey = Object.keys(errors)[0];
+    const firstVal = firstKey ? errors[firstKey] : null;
+    const firstMsg = Array.isArray(firstVal) ? firstVal[0] : firstVal;
+    if (firstMsg) return firstMsg;
+  }
+
+  return data?.message || fallback;
 };
 
 const authService = {
@@ -42,12 +60,19 @@ const authService = {
     localStorage.setItem('token', payload.access_token);
     const role = await inferRole();
     let profileImage = resolveAvatar(null);
-    if (role === 'doctor') {
-      try {
+    
+    try {
+      if (role === 'doctor') {
         const meResponse = await api.get('/clinic/doctors/me/');
         profileImage = resolveAvatar(meResponse.data?.pfpUrl);
-      } catch (_) {}
+      } else if (role === 'patient') {
+        const meResponse = await api.get('/clinic/patients/me/');
+        profileImage = resolveAvatar(meResponse.data?.pfpUrl);
+      }
+    } catch {
+      console.warn('Failed to fetch profile image during login');
     }
+
     const user = {
       id: payload.userId,
       userId: payload.userId,
@@ -65,7 +90,9 @@ const authService = {
   logout: async () => {
     try {
       await api.post('/auth/logout/', {});
-    } catch (_) {}
+    } catch {
+      // Local logout should still complete if the server session is already gone.
+    }
     localStorage.removeItem('user');
     localStorage.removeItem('token');
   },
@@ -82,6 +109,36 @@ const authService = {
     localStorage.setItem('user', JSON.stringify(merged));
     return merged;
   },
+
+  forgotPassword: async (email) => {
+    try {
+      const response = await api.post('/auth/forgot-password/', { email });
+      if (response.data?.status !== 'success') {
+        throw new Error(response.data?.message || 'Could not send reset link');
+      }
+      return response.data;
+    } catch (err) {
+      if (err instanceof Error && !err.response) {
+        throw err;
+      }
+      throw new Error(getAuthErrorMessage(err, 'Could not send reset link'));
+    }
+  },
+
+  resetPassword: async ({ uid, token, password }) => {
+    try {
+      const response = await api.post('/auth/reset-password/', { uid, token, password });
+      if (response.data?.status !== 'success') {
+        throw new Error(response.data?.message || 'Could not reset password');
+      }
+      return response.data;
+    } catch (err) {
+      if (err instanceof Error && !err.response) {
+        throw err;
+      }
+      throw new Error(getAuthErrorMessage(err, 'Could not reset password'));
+    }
+  },
   
   register: async (userData) => {
     const { firstName, lastName } = parseName(userData.name);
@@ -89,7 +146,7 @@ const authService = {
       email: userData.email,
       password: userData.password,
       first_name: firstName || userData.name || 'User',
-      last_name: lastName || 'Account',
+      last_name: lastName || '',
       phoneNo: userData.phoneNo || '',
     };
 
@@ -111,19 +168,7 @@ const authService = {
     try {
       response = await api.post(endpoint, { ...basePayload, ...extraPayload });
     } catch (err) {
-      const data = err?.response?.data;
-      const fallback = data?.message || 'Registration failed';
-
-      // Prefer showing first validation message if available.
-      const errors = data?.errors;
-      if (errors && typeof errors === 'object') {
-        const firstKey = Object.keys(errors)[0];
-        const firstVal = firstKey ? errors[firstKey] : null;
-        const firstMsg = Array.isArray(firstVal) ? firstVal[0] : firstVal;
-        throw new Error(firstMsg || fallback);
-      }
-
-      throw new Error(fallback);
+      throw new Error(getAuthErrorMessage(err, 'Registration failed'));
     }
 
     if (response.data?.status !== 'success') {

@@ -4,7 +4,10 @@ import { Search, MapPin, Star, Filter, ChevronRight, X, Clock } from 'lucide-rea
 import doctorService from '../services/doctor.service';
 
 const DoctorCardLarge = ({ doctor }) => (
-  <div className="group bg-white rounded-[2rem] border border-slate-100 p-6 hover:shadow-2xl hover:shadow-slate-200 transition-all duration-300 flex flex-col md:flex-row gap-6">
+  <Link
+    to={`/doctors/${doctor.id}`}
+    className="group bg-white rounded-[2rem] border border-slate-100 p-6 hover:shadow-2xl hover:shadow-slate-200 transition-all duration-300 flex flex-col md:flex-row gap-6"
+  >
     <div className="md:w-48 lg:w-56 h-48 md:h-auto rounded-2xl overflow-hidden bg-slate-100 relative shrink-0">
       <img src={doctor.image} alt={doctor.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
       <div className="absolute top-3 left-3 bg-white/90 backdrop-blur px-2 py-1 rounded-lg flex items-center space-x-1 shadow-sm">
@@ -16,8 +19,10 @@ const DoctorCardLarge = ({ doctor }) => (
     <div className="flex-grow space-y-4">
       <div className="flex justify-between items-start">
         <div>
-          <div className="flex items-center space-x-2 mb-1">
-             <span className="px-2 py-0.5 bg-primary-50 text-primary-600 text-[10px] font-bold uppercase tracking-wider rounded-md">Available Today</span>
+          <div className="flex flex-col items-start space-y-2 mb-1">
+             {doctor.availableToday && (
+               <span className="px-2 py-0.5 bg-primary-50 text-primary-600 text-[10px] font-bold uppercase tracking-wider rounded-md">Available Today</span>
+             )}
              <h3 className="text-xl font-bold text-slate-900">{doctor.name}</h3>
           </div>
           <p className="text-primary-600 font-bold">{doctor.specialty}</p>
@@ -52,26 +57,26 @@ const DoctorCardLarge = ({ doctor }) => (
              </div>
            )}
         </div>
-        <Link 
-          to={`/doctors/${doctor.id}`}
-          className="bg-primary-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-primary-700 transition-all shadow-lg shadow-primary-100 flex items-center space-x-2"
-        >
+        <span className="bg-primary-600 text-white px-6 py-2.5 rounded-xl font-bold group-hover:bg-primary-700 transition-all shadow-lg shadow-primary-100 flex items-center space-x-2">
           <span>View Profile</span>
           <ChevronRight className="w-4 h-4" />
-        </Link>
+        </span>
       </div>
     </div>
-  </div>
+  </Link>
 );
 
 const Doctors = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const specializationFromUrl = searchParams.get('specialization') || '';
+  const searchFromUrl = searchParams.get('search') || '';
+  const locationFromUrl = searchParams.get('location') || '';
 
   const [doctors, setDoctors] = useState([]);
   const [specialtyOptions, setSpecialtyOptions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(searchFromUrl);
+  const [locationTerm] = useState(locationFromUrl);
   const [selectedSpecialty, setSelectedSpecialty] = useState(specializationFromUrl);
 
   useEffect(() => {
@@ -90,27 +95,33 @@ const Doctors = () => {
     loadSpecialties();
   }, []);
 
-  const fetchDoctors = async () => {
-    setLoading(true);
-    try {
-      const data = await doctorService.getDoctors({
-        search: searchTerm,
-        specialty: selectedSpecialty
-      });
-      setDoctors(data);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchDoctors();
-  }, [selectedSpecialty]);
+    let isCurrent = true;
+    const timeoutId = window.setTimeout(async () => {
+      setLoading(true);
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    fetchDoctors();
-  };
+      try {
+        const data = await doctorService.getDoctors({
+          search: searchTerm.trim(),
+          specialty: selectedSpecialty,
+          location: locationTerm.trim(),
+        });
+
+        if (isCurrent) {
+          setDoctors(data);
+        }
+      } finally {
+        if (isCurrent) {
+          setLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      isCurrent = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [searchTerm, selectedSpecialty, locationTerm]);
 
   const setSpecialtyFilter = (spec) => {
     const next = spec === selectedSpecialty ? '' : spec;
@@ -149,7 +160,7 @@ const Doctors = () => {
               <div className="space-y-6">
                 <div>
                   <label className="text-sm font-bold text-slate-700 block mb-3 uppercase tracking-wider">Search</label>
-                  <form onSubmit={handleSearch} className="relative">
+                  <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input 
                       type="text" 
@@ -158,7 +169,7 @@ const Doctors = () => {
                       placeholder="Doctor name..." 
                       className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm font-medium"
                     />
-                  </form>
+                  </div>
                 </div>
 
                 <div>

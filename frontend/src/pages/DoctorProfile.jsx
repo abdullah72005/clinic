@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   Star, 
@@ -13,7 +13,8 @@ import {
   MessageSquare,
   ThumbsUp,
   Share2,
-  Heart
+  Heart,
+  Check
 } from 'lucide-react';
 import doctorService from '../services/doctor.service';
 import bookingService from '../services/booking.service';
@@ -43,6 +44,10 @@ const DoctorProfile = () => {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [showToast, setShowToast] = useState({ show: false, message: '' });
+  
+  const reviewsRef = useRef(null);
 
   useEffect(() => {
     const fetchDoctor = async () => {
@@ -51,12 +56,12 @@ const DoctorProfile = () => {
           doctorService.getDoctorById(id),
           doctorService.getDoctorReviews(id),
         ]);
-        const mappedReviews = reviewsData.map((review, index) => ({
+        const mappedReviews = reviewsData.map((review) => ({
           id: review.id,
           rating: review.rating || 0,
           comment: review.comment || 'No comment provided.',
           createdAt: review.createdAt,
-          reviewerName: `Patient ${index + 1}`,
+          reviewerName: review.patientName || 'Unknown Patient',
         }));
 
         setReviews(mappedReviews);
@@ -76,6 +81,37 @@ const DoctorProfile = () => {
     };
     fetchDoctor();
   }, [id, navigate]);
+
+  const triggerToast = (message) => {
+    setShowToast({ show: true, message });
+    setTimeout(() => setShowToast({ show: false, message: '' }), 3000);
+  };
+
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: doctor.name,
+          text: `Check out ${doctor.name} on DocBook`,
+          url: window.location.href,
+        });
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        triggerToast('Link copied to clipboard! 📋');
+      }
+    } catch (err) {
+      console.error('Share failed:', err);
+    }
+  };
+
+  const toggleFavorite = () => {
+    setIsFavorite(!isFavorite);
+    triggerToast(!isFavorite ? 'Added to favorites! ❤️' : 'Removed from favorites');
+  };
+
+  const scrollToReviews = () => {
+    reviewsRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const handleBooking = async () => {
     if (!isAuthenticated) {
@@ -110,11 +146,6 @@ const DoctorProfile = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <Link to="/doctors" className="inline-flex items-center text-slate-500 font-bold hover:text-primary-600 transition-colors mb-8 group">
-        <ArrowLeft className="w-5 h-5 mr-2 group-hover:-translate-x-1 transition-transform" />
-        Back to Results
-      </Link>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
         {/* Doctor Info (Left) */}
         <div className="lg:col-span-2 space-y-12">
@@ -158,14 +189,11 @@ const DoctorProfile = () => {
                 </div>
 
                 <div className="flex items-center space-x-4 pt-4">
-                  <button className="p-3 rounded-2xl bg-slate-50 text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-all border border-slate-100">
-                    <Heart className="w-5 h-5" />
-                  </button>
-                  <button className="p-3 rounded-2xl bg-slate-50 text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-all border border-slate-100">
+                  <button 
+                    onClick={handleShare}
+                    className="p-3 rounded-2xl bg-slate-50 text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-all border border-slate-100"
+                  >
                     <Share2 className="w-5 h-5" />
-                  </button>
-                  <button className="p-3 rounded-2xl bg-slate-50 text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-all border border-slate-100">
-                    <MessageSquare className="w-5 h-5" />
                   </button>
                 </div>
               </div>
@@ -186,12 +214,9 @@ const DoctorProfile = () => {
           </div>
 
           {/* Reviews Section */}
-          <div className="space-y-8">
+          <div ref={reviewsRef} className="space-y-8">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-black text-slate-900">Patient Reviews</h2>
-              <button className="text-primary-600 font-bold hover:underline">
-                View All {doctor.reviewsCount || 0} Reviews
-              </button>
             </div>
 
             {reviews.length === 0 ? (
@@ -222,10 +247,6 @@ const DoctorProfile = () => {
                       </div>
                     </div>
                     <p className="text-slate-500 text-sm leading-relaxed">{review.comment}</p>
-                    <button className="flex items-center text-xs font-bold text-slate-400 hover:text-primary-600 transition-colors">
-                      <ThumbsUp className="w-3 h-3 mr-1" />
-                      Helpful
-                    </button>
                   </div>
                 ))}
               </div>
@@ -238,8 +259,8 @@ const DoctorProfile = () => {
           <div className="bg-slate-900 rounded-[3rem] p-8 sticky top-24 text-white shadow-2xl shadow-slate-300">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px] mb-1">Price per visit</p>
-                <p className="text-3xl font-black">${doctor.price}</p>
+                <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px] mb-1">Clinic Appointment</p>
+                <p className="text-2xl font-black">Book Now</p>
               </div>
               <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center">
                 <Calendar className="w-6 h-6 text-primary-400" />
@@ -321,6 +342,17 @@ const DoctorProfile = () => {
           </div>
         </div>
       </div>
+      {/* Toast Notification */}
+      {showToast.show && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center space-x-3 border border-slate-800">
+            <div className="w-6 h-6 bg-primary-500 rounded-lg flex items-center justify-center">
+              <Check className="w-4 h-4 text-white" />
+            </div>
+            <p className="text-sm font-bold tracking-wide">{showToast.message}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
